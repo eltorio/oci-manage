@@ -24,7 +24,7 @@
   - [installation du client cilium](#installation-du-client-cilium)
   - [creation manuelle du fichier `/etc/hosts` du control plane](#creation-manuelle-du-fichier-etchosts-du-control-plane)
   - [definitions du firewall](#definitions-du-firewall)
-- [Installation des nœuds](#installation-des-nœuds)
+- [Installation des nœuds actifs (workers)](#installation-des-nœuds-actifs-workers)
 - [Quand tous les nœuds sont pré-installés](#quand-tous-les-nœuds-sont-pré-installés)
   - [mise à jour des paquets:](#mise-à-jour-des-paquets)
   - [redémarrer le cluster](#redémarrer-le-cluster)
@@ -201,7 +201,7 @@ dans /etc/iptables/rules.v4 a été ajouté sous l'autorisation du port SSH (22)
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 10259 -j ACCEPT
 -A INPUT -p udp -m state --state NEW -m udp --dport 51820 -j ACCEPT -m comment --comment "Wireguard UDP port"
 ```
-# Installation des nœuds
+# Installation des nœuds actifs (workers)
 **Cela ne peut être fait que si les réseaux privés sont interconnectés**  
 Jettez un coup d'œil au script `oci-manage`  
 Il contient toutes les fonctionsd'automatisations, elles sont non documentées car on manque de courage !  
