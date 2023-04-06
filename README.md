@@ -345,7 +345,7 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 ```
 
 ## Ouverture sur le monde extérieur
-Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relai le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
+Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relaie le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
 Pour modifier la configuruation il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
 ```sh
 cluster_deploy_haproxy_config_on_members
