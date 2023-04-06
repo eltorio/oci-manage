@@ -27,3 +27,4 @@ dashboard/02-ingress.yaml
 oci-manage-config.sh
 bird.conf
 miscellaneous/ciliumbgp.yaml
+.gitconfig
