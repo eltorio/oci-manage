@@ -198,7 +198,7 @@ function init_install_software() {
         ssh -4 root@$HOST 'curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/google-k8s.gpg'
         ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list'
         ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/google-k8s.gpg] http://apt.kubernetes.io/ kubernetes-xenial main"| tee /etc/apt/sources.list.d/k8s.list'
-        ssh -4 root@$HOST 'apt update && apt dist-upgrade -y && apt install -y iputils-ping cron vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin kubeadm kubelet kubectl kubernetes-cni'
+        ssh -4 root@$HOST 'apt update && apt dist-upgrade -y && apt install -y iputils-ping cron vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin kubeadm kubelet kubectl kubernetes-cni haproxy'
         ssh -4 root@$HOST "usermod -aG docker $USERNAME && reboot"
     fi
 }
@@ -325,8 +325,8 @@ function cluster_reset_control_plane() {
         sudo rm -rf /etc/cni &&
         docker system prune -a -f &&
         sudo rm -rf /root/.kube
-        sudo rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf
-        sudo systemctl restart systemd-resolved
+    sudo rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf
+    sudo systemctl restart systemd-resolved
     sudo rm -rf $HOME/.kube &&
         sudo reboot
 }
@@ -1271,16 +1271,62 @@ function get_kube_dns_ip() {
 }
 
 function set_systemd_resolve_to_k8s() {
-    sudo mkdir -p /etc/systemd/resolved.conf.d
-    sudo bash -c "cat >/etc/systemd/resolved.conf.d/k8s-resolve.conf" <<EOF
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage set_systemd_resolve_to_k8s"
+    else
+        sudo mkdir -p /etc/systemd/resolved.conf.d
+        sudo bash -c "cat >/etc/systemd/resolved.conf.d/k8s-resolve.conf" <<EOF
 [Resolve]
 Cache=yes
 DNS=$(
-        get_kube_dns_ip
-    )
+            get_kube_dns_ip
+        )
 Domains=default.svc.cluster.local svc.cluster.local cluster.local
 EOF
+    fi
 }
+
+function cluster_init_create_master_haproxy_cfg() {
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_master_haproxy_cfg"
+    else
+sudo bash -c "cat >/etc/haproxy/haproxy.cfg" << EOF
+global
+        log /dev/log    local0
+        log /dev/log    local1 notice
+        chroot /var/lib/haproxy
+        stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+        stats timeout 30s
+        user haproxy
+        group haproxy
+        daemon
+defaults
+    mode tcp
+
+resolvers dns
+  nameserver k8s  127.0.0.53:53
+  hold valid 1s
+
+frontend traefik
+        bind :443
+        default_backend k8s-traefik 
+
+backend k8s-traefik
+        server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
+EOF
+    sudo systemctl restart haproxy
+    fi
+}
+
+function cluster_deploy_haproxy_config_on_members(){
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage cluster_deploy_haproxy_config_on_members"
+    else
+    cluster_copy_file_as_root /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg
+    cluster_run_on_all_members_as_root "systemctl restart haproxy"
+    fi
+}
+
 function cluster_help() {
     echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
     echo "cluster_apt_install:                               install an apt package on all the cluster"
@@ -1289,11 +1335,13 @@ function cluster_help() {
     echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
     echo "cluster_copy_file_as_current_user:                 copy local file to each member"
     echo "cluster_copy_file_as_root:                         copy local file as root to each member"
+    echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
     echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
     echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
     echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
     echo "cluster_init_create_control_plane_pool_kubernetes: create control plane with ipam=kubernetes"
     echo "cluster_init_create_control_plane:                 create control plane with ipam=cluster-pool"
+    echo "cluster_init_create_master_haproxy_cfg:            create a basic haproxy 443/tcp proxy to traefik"
     echo "cluster_init_create_member:                        join a unique member to k8s cluster given its name"
     echo "cluster_init_create_members:                       join all members to k8s cluster"
     echo "cluster_init_create_post_install:                  run post install deployement (certmanager, traefik, dashboard)"
