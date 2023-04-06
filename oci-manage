@@ -305,6 +305,7 @@ function cluster_reset_members() {
         rm -rf /var/lib/cni && \
         rm -rf /etc/cni && \
         docker system prune -a -f && \
+        sudo rm -rf /root/.kube && \
         sudo rm -rf /home/$USER/.kube && \
         reboot"
     done
@@ -322,7 +323,8 @@ function cluster_reset_control_plane() {
         sudo rm -rf /var/lib/cni &&
         sudo rm -rf /etc/cni &&
         docker system prune -a -f &&
-        sudo rm -rf $HOME/.kube &&
+        sudo rm -rf /root/.kube
+    sudo rm -rf $HOME/.kube &&
         sudo reboot
 }
 
@@ -383,10 +385,11 @@ function cluster_init_create_member() {
         TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
         DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
         echo $MEMBER
-        ssh root@$MEMBER "rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
+        ssh root@$MEMBER "mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
             --cri-socket=unix:///run/cri-dockerd.sock"
+        sudo scp /root/.kube/config root@$MEMBER:/root/.kube/config
     fi
 }
 
@@ -1183,7 +1186,11 @@ function cluster_get_traefik_lb_ip() {
     if [ "$#" -ne 0 ]; then
         echo "Illegal number of parameters:" && echo "    usage cluster_get_traefik_lb_ip"
     else
-        LB_IP=$(kubectl get services -A | awk '$2=="traefik" && $3=="LoadBalancer" {print $5}')
+        #LB_IP=$(kubectl get services -A | awk '$2=="traefik" && $3=="LoadBalancer" {print $5}')
+        LB_IP=$(kubectl get services \
+            --namespace kube-traefik \
+            traefik \
+            --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
         echo $LB_IP
     fi
 }
