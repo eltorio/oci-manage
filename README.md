@@ -200,7 +200,7 @@ dans /etc/iptables/rules.v4 a été ajouté sous l'autorisation du port SSH (22)
 ```
 # Installation des nœuds
 **Cela ne peut être fait que si les réseaux privés sont interconnectés**  
-Jettez un coup d'œil au script oci-manage  
+Jettez un coup d'œil au script `oci-manage`  
 Il contient toutes les fonctionsd'automatisations, elles sont non documentées car on manque de courage !  
 Au début du fichier il y a un certain nombre de variables…  
 Copiez les dans un fichiers `./oci-manage-config.sh` et éditez les.  
