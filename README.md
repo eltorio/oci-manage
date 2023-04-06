@@ -24,7 +24,7 @@
   - [installation du client cilium](#installation-du-client-cilium)
   - [creation manuelle du fichier `/etc/hosts` du control plane](#creation-manuelle-du-fichier-etchosts-du-control-plane)
   - [definitions du firewall](#definitions-du-firewall)
-- [Installation des nœuds actifs (workers)](#installation-des-nœuds-actifs-workers)
+- [Installation des nœuds actifs (workers) depuis le control-plane](#installation-des-nœuds-actifs-workers-depuis-le-control-plane)
 - [Quand tous les nœuds sont pré-installés](#quand-tous-les-nœuds-sont-pré-installés)
   - [mise à jour des paquets:](#mise-à-jour-des-paquets)
   - [redémarrer le cluster](#redémarrer-le-cluster)
@@ -39,6 +39,7 @@
     - [Effacement](#effacement)
     - [Réinstallation](#réinstallation)
   - [Ouverture sur le monde extérieur](#ouverture-sur-le-monde-extérieur)
+  - [Accès aux tableaux de bord](#accès-aux-tableaux-de-bord)
   - [Bird sur le control-plane](#bird-sur-le-control-plane)
 
 ## Objectifs
@@ -201,7 +202,7 @@ dans /etc/iptables/rules.v4 a été ajouté sous l'autorisation du port SSH (22)
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 10259 -j ACCEPT
 -A INPUT -p udp -m state --state NEW -m udp --dport 51820 -j ACCEPT -m comment --comment "Wireguard UDP port"
 ```
-# Installation des nœuds actifs (workers)
+# Installation des nœuds actifs (workers) depuis le control-plane
 **Cela ne peut être fait que si les réseaux privés sont interconnectés**  
 Jettez un coup d'œil au script `oci-manage`  
 Il contient toutes les fonctionsd'automatisations, elles sont non documentées car on manque de courage !  
@@ -346,7 +347,7 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 
 ## Ouverture sur le monde extérieur
 Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relaie le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
-Pour modifier la configuruation il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
+Pour modifier la configuration il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
@@ -364,6 +365,14 @@ backend k8s-traefik
   - `traefik` est le nom dns interne d'un service 
   - `kube-traefik` son espace de nom
   - `443` est le port tcp.
+
+## Accès aux tableaux de bord
+Sur votre DNS faites pointer `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` vers les adresses IP des nœuds que vous ouvrez sur l'extérieur (un seul est suffisant).
+Notez que `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` du fichier `oci-manage-config.sh` sont au pluriel. En effet il s'agit de tableau bash qui permettent de définir plusieurs nom DNS ainsi par exemple on peut faire pointer `dashboard.domaine.prive` vers l'adresse IP visible depuis l'intérieur du labo et `dashboard.domaine.com` vers l'adresse IP visible depuis Internet. Traefik acceptera les deux noms. Le certificat SSL sera valide pour les deux noms.  
+Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
+- `https://TRAEFIK_DASHBOARD_DNS_NAMES/dashboard/`
+- `https://HUBBLE_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
+- `https://DASHBOARD_DNS_NAMES` (login à l'aide du jeton obtenu avec dashboard_get_token)
 ## Bird sur le control-plane
 TODO
 ```sh
