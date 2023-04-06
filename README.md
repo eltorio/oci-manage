@@ -111,7 +111,7 @@ Admit group Administrators of tenancy Requestor to associate local-peering-gatew
 ## 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation
 ```sh
 ssh -i clef_super_privée ubuntu@instance_ip
-USERNAME=exploitant
+USERNAME=adminuser
 PASSWORD=sonmotdepasse
 sudo useradd -m -s /bin/bash -p $PASSWORD $USERNAME
 sudo usermod -aG sudo "$USERNAME"
@@ -125,7 +125,7 @@ exit
 ```
 ## 2 - login en tant qu'exploitant
 ```sh
-ssh -i clef_super_privée exploitant@instance_ip
+ssh -i clef_super_privée adminuser@instance_ip
 # définition du nom d'hôte
 sudo hostnamectl hostname master.private.$compartment.oraclevcn.com
 # création d'une clef ssh pour root
