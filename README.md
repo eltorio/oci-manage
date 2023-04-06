@@ -36,6 +36,9 @@
   - [Control-Plane](#control-plane)
   - [Workers](#workers)
   - [Effacement du cluster et résinstallation du cluster](#effacement-du-cluster-et-résinstallation-du-cluster)
+    - [Effacement](#effacement)
+    - [Réinstallation](#réinstallation)
+  - [Ouverture sur le monde extérieur](#ouverture-sur-le-monde-extérieur)
   - [Bird sur le control-plane](#bird-sur-le-control-plane)
 
 ## Objectifs
@@ -328,15 +331,41 @@ kube-traefik           traefik-d65c6d5cd-d8w4j                                  
 kubernetes-dashboard   dashboard-metrics-scraper-7bc864c59-d9dqf                            1/1     Running   1 (28m ago)    3h
 kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                                1/1     Running   1 (29m ago)    3h
 ```
-## Effacement du cluster et résinstallation du cluster
+## Effacement du cluster et résinstallation du cluster  
+On est dans un labo alors on doit faire des essais il est très simple d'effacer intégralement le cluster et de le remettre dans la configuration initiale. Deux étapes sont nécessaires:  
+### Effacement 
 ```sh
 cluster_reset_members ; cluster_reset_control_plane
+```
+### Réinstallation
+```sh
 rm -f ~/.kube/config
 sudo rm -f /root/.kube/config
 cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
 ```
 
+## Ouverture sur le monde extérieur
+Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relai le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
+Pour modifier la configuruation il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
+```sh
+cluster_deploy_haproxy_config_on_members
+```
+la configuration d'un port est simple:
+```
+frontend traefik
+        bind :443
+        default_backend k8s-traefik 
+
+backend k8s-traefik
+        server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
+```
+- `traefik.kube-traefik.svc.cluster.local`
+  - `k8s-traefik` est un simple étiquette
+  - `traefik` est le nom dns interne d'un service 
+  - `kube-traefik` son espace de nom
+  - `443` est le port tcp.
 ## Bird sur le control-plane
+TODO
 ```sh
 sudo apt install bird
 sudo systemctl enable bird
