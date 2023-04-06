@@ -360,7 +360,7 @@ backend k8s-traefik
         server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
 ```
 - `traefik.kube-traefik.svc.cluster.local`
-  - `k8s-traefik` est un simple étiquette
+  - `k8s-traefik` est une simple étiquette
   - `traefik` est le nom dns interne d'un service 
   - `kube-traefik` son espace de nom
   - `443` est le port tcp.
