@@ -125,7 +125,7 @@ exit
 ```
 ## 2 - login en tant qu'exploitant
 ```sh
-ssh -i clef_super_privée ubuntu@instance_ip
+ssh -i clef_super_privée exploitant@instance_ip
 # définition du nom d'hôte
 sudo hostnamectl hostname master.private.$compartment.oraclevcn.com
 # création d'une clef ssh pour root
