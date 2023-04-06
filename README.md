@@ -147,7 +147,7 @@ sudo apt-get update && sudo apt-get dist-upgrade && sudo reboot
 ```
 ```sh
 # installation
-sudo apt-get update && sudo apt-get install vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin git golang-go iputils-ping cron kubeadm kubelet kubectl kubernetes-cni
+sudo apt-get update && sudo apt-get install vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin git golang-go iputils-ping cron kubeadm haproxy kubelet kubectl kubernetes-cni
 # ajout de l'exploitant comme administrateur docker
 sudo usermod -aG docker $USER
 sudo reboot
