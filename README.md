@@ -144,6 +144,8 @@ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearm
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/google-k8s.gpg] http://apt.kubernetes.io/ kubernetes-xenial main"| sudo tee /etc/apt/sources.list.d/k8s.list
 # mise à jour de l'image de base Ubuntu 22.04 LTS (pour une instation propre)
 sudo apt-get update && sudo apt-get dist-upgrade && sudo reboot
+```
+```sh
 # installation
 sudo apt-get update && sudo apt-get install vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin git golang-go iputils-ping cron kubeadm kubelet kubectl kubernetes-cni
 # ajout de l'exploitant comme administrateur docker
