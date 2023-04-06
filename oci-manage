@@ -305,8 +305,9 @@ function cluster_reset_members() {
         rm -rf /var/lib/cni && \
         rm -rf /etc/cni && \
         docker system prune -a -f && \
-        sudo rm -rf /root/.kube && \
-        sudo rm -rf /home/$USER/.kube && \
+        rm -rf /root/.kube && \
+        rm -rf /home/$USER/.kube && \
+        rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf && \
         reboot"
     done
 }
@@ -324,6 +325,8 @@ function cluster_reset_control_plane() {
         sudo rm -rf /etc/cni &&
         docker system prune -a -f &&
         sudo rm -rf /root/.kube
+        sudo rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf
+        sudo systemctl restart systemd-resolved
     sudo rm -rf $HOME/.kube &&
         sudo reboot
 }
@@ -347,6 +350,7 @@ function cluster_init_create_control_plane() {
         --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS \
         --node-name $HOSTNAME \
         --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1)
+    set_systemd_resolve_to_k8s
     rm -rf $HOME/.kube
     mkdir -p $HOME/.kube
     sudo mkdir -p /root/.kube
@@ -385,11 +389,13 @@ function cluster_init_create_member() {
         TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
         DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
         echo $MEMBER
-        ssh root@$MEMBER "mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
+        ssh root@$MEMBER "mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
             --cri-socket=unix:///run/cri-dockerd.sock"
         sudo scp /root/.kube/config root@$MEMBER:/root/.kube/config
+        sudo scp /etc/systemd/resolved.conf.d/k8s-resolve.conf root@$MEMBER:/etc/systemd/resolved.conf.d/k8s-resolve.conf
+        ssh root@$MEMBER "systemctl restart systemd-resolved"
     fi
 }
 
@@ -1246,6 +1252,35 @@ EOF
     fi
 }
 
+function get_subnet_from_cidr() {
+    if [ "$#" -ne 1 ]; then
+        echo "Illegal number of parameters:" && echo "    usage get_subnet_from_cidr cidr"
+    else
+        IP=$1
+        echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\).*$/\1\2\3/')"
+    fi
+}
+
+function get_kube_dns_ip() {
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage get_kube_dns_ip"
+    else
+        KUBE_DNS=$(get_subnet_from_cidr $SERVICE_CIDR)10
+        echo $KUBE_DNS
+    fi
+}
+
+function set_systemd_resolve_to_k8s() {
+    sudo mkdir -p /etc/systemd/resolved.conf.d
+    sudo bash -c "cat >/etc/systemd/resolved.conf.d/k8s-resolve.conf" <<EOF
+[Resolve]
+Cache=yes
+DNS=$(
+        get_kube_dns_ip
+    )
+Domains=default.svc.cluster.local svc.cluster.local cluster.local
+EOF
+}
 function cluster_help() {
     echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
     echo "cluster_apt_install:                               install an apt package on all the cluster"
@@ -1280,8 +1315,9 @@ function cluster_help() {
     echo "get_gateway_from_ip:                               get gateway for ip"
     echo "get_gateway:                                       get gateway for named host"
     echo "get_host_arch:                                     display the debian host arch"
+    echo "get_kube_dns_ip:                                   compute kube-dns internal ip for Service CIDR"
     echo "get_remote_interface_from_ip:                      get the remote interface corresponding to ip"
-    echo "get_remote_interface"
+    echo "get_remote_interface:                              get the remote interface on a host giving its mac address"
     echo "get_subnet_from_ip:                                get subnet for ip"
     echo "get_subnet:                                        get subnet for named host"
     echo "init_allow_keys_for_root:                          allow all admins keys in the new host"
