@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: "2023-04-03T07:37:54Z"
+  labels:
+    kubernetes.io/metadata.name: sandbox
+  name: sandbox
+---
+
+kind: Service 
+apiVersion: v1 
+metadata:
+  name: netshell
+  namespace: sandbox
+spec:
+  type: LoadBalancer
+  selector:
+    app: echo-on-port-8000 
+  ports:
+    - name: "8000"
+      port: 8000
+      targetPort: 8000
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netshell
+  namespace: sandbox
+  labels:
+    app: echo-on-port-8000
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-on-port-8000
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: echo-on-port-8000
+    spec:
+      containers:
+        - name: netshell
+          image: highcanfly/net-tools
+          imagePullPolicy: Always
+          command: ["/bin/sh"]
+          args: ["-c", "cd ~/ && touch file.txt && mknod -m 777 fifo p && cat fifo | netcat -k -l 8000 > fifo && sleep infinity"]
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: 250m
+              memory: "536870912"
+      restartPolicy: Always
+status: {}

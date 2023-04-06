@@ -1,0 +1,10 @@
+#!/bin/bash
+#1-store
+PWD=`pwd`
+cd ~
+tar -cvJf _sensitive_datas/_sensitive_datas.tar.xz oci-manage-config.sh oci.json bird.conf .bashrc .ssh .kube
+#2-encrypt
+openssl aes-256-cbc -base64 -md sha256 -in _sensitive_datas/_sensitive_datas.tar.xz -out _sensitive_datas/_sensitive_datas.tar.xz.enc
+#3-delete 
+rm _sensitive_datas/_sensitive_datas.tar.xz
+cd $PWD
