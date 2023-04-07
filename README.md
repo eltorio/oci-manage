@@ -392,7 +392,6 @@ metadata:
     cert-manager.io/cluster-issuer: company-ca-issuer
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
   creationTimestamp: "2023-04-07T05:27:16Z"
   name: monhote-ingress
   namespace: default
