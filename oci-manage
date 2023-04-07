@@ -1418,6 +1418,9 @@ function cluster_init_install_openebs() {
             --set jiva.defaultStoragePath=$STORAGE_LOCATION \
             --set openebs-ndm.enabled=true \
             --set localpv-provisioner.enabled=true
+        kubectl patch storageclass openebs-jiva-csi-default \
+            -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
     fi
 }
 function cluster_help() {
