@@ -343,7 +343,7 @@ On est dans un labo alors on doit faire des essais il est très simple d'effacer
 ### Effacement 
 ```sh
 cluster_reset_members
-# eventuellement
+# eventuellement une fois les membres disponibles
 cluster_reset_storage
 # control_plane
 cluster_reset_control_plane
