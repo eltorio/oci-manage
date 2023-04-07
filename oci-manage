@@ -28,6 +28,8 @@ CA_KEY="LS0tLS1C0tLQo="
 DASHBOARD_DNS_NAMES=("dashboard.fqdn" "dashboard.kube-dashboard.svc.cluster.local")
 LONGHORN_DASHBOARD_DNS_NAMES=("longhorn.fqdn" "longhorn-frontend.kube-system.svc.cluster.local")
 STORAGE_BACKEND=""
+STORAGE_LOCATION="/storage"
+JIVA_REPLICAS=1
 #STORAGE_BACKEND="longhorn"
 LONGHORN_VERSION="1.4.1"
 #LONGHORN_VERSION="1.3.2"
@@ -301,7 +303,16 @@ function cluster_iptables_flush() {
     done
     sudo iptables -F && sudo iptables -X
 }
-
+function cluster_reset_storage() {
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage cluster_reset_storage"
+    else
+        for MEMBER in $CLUSTER_MEMBERS; do
+            echo $MEMBER
+            ssh root@$MEMBER "rm -rf /storage/*"
+        done
+    fi
+}
 function cluster_reset_members() {
     for MEMBER in $CLUSTER_MEMBERS; do
         echo $MEMBER
@@ -404,7 +415,7 @@ function cluster_init_create_member() {
         TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
         DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
         echo $MEMBER
-        ssh root@$MEMBER "mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
+        ssh root@$MEMBER "mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
             --cri-socket=unix:///run/cri-dockerd.sock"
@@ -1394,6 +1405,21 @@ function cluster_init_install_longhorn() {
     fi
 }
 
+function cluster_init_install_openebs() {
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
+    else
+        helm repo add openebs https://openebs.github.io/charts
+        helm repo update
+        helm install openebs openebs/openebs --namespace kube-openebs --create-namespace \
+            --set legacy.enabled=false \
+            --set jiva.enabled=true \
+            --set jiva.replicas=$JIVA_REPLICAS \
+            --set jiva.defaultStoragePath=$STORAGE_LOCATION \
+            --set openebs-ndm.enabled=true \
+            --set localpv-provisioner.enabled=true
+    fi
+}
 function cluster_help() {
     echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
     echo "cluster_apt_install:                               install an apt package on all the cluster"
@@ -1415,12 +1441,16 @@ function cluster_help() {
     echo "cluster_init_install_certmanager:                  deploy cert-manager with ca"
     echo "cluster_init_install_cri_docker:                   install cri_docker on arm64 only"
     echo "cluster_init_install_dashboard:                    deploy dashboard"
-    echo "cluster_init_install_longhorn:                     install longhorn"
+    echo "cluster_init_install_longhorn:                     install longhorn storage management"
     echo "cluster_init_install_longhorn_ingress:             install longhorn ingress for all LONGHORN_DASHBOARD_DNS_NAMES"
+    echo "cluster_init_install_openebs:                      install openEbs storage management"
     echo "cluster_init_install_traefik:                      deploy the traefik helm chart in kube-traefik namespace"
     echo "cluster_iptables_flush:                            flush iptables on control plane and all members"
     echo "cluster_ping_host_from_members:                    ping the given host from each member"
     echo "cluster_reboot:                                    reboot all the cluster"
+    echo "cluster_reset_control_plane:                       delete the control plane"
+    echo "cluster_reset_members:                             delete all members"
+    echo "cluster_reset_storage:                             empty all /storage"
     echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
     echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
     echo "cluster_run_on_all_members_as_root:                run a command on each member"

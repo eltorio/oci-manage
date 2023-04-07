@@ -39,6 +39,8 @@
     - [Effacement](#effacement)
     - [Réinstallation](#réinstallation)
   - [Stockage persistant](#stockage-persistant)
+    - [Longhorn](#longhorn)
+    - [OpenEBS/jiva](#openebsjiva)
   - [Gestionnaire de certificat](#gestionnaire-de-certificat)
   - [Ouverture sur le monde extérieur](#ouverture-sur-le-monde-extérieur)
   - [Accès aux tableaux de bord](#accès-aux-tableaux-de-bord)
@@ -340,7 +342,11 @@ kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                    
 On est dans un labo alors on doit faire des essais il est très simple d'effacer intégralement le cluster et de le remettre dans la configuration initiale. Deux étapes sont nécessaires:  
 ### Effacement 
 ```sh
-cluster_reset_members ; cluster_reset_control_plane
+cluster_reset_members
+# eventuellement
+cluster_reset_storage
+# control_plane
+cluster_reset_control_plane
 ```
 ### Réinstallation
 ```sh
@@ -351,6 +357,7 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 
 ## Stockage persistant 
 Plusieurs solutions existent.  
+### Longhorn
 Si vos nœuds sont suffisament puissants [Longhorn](https://longhorn.io/) fonctionne à merveille. Il ne fonctionne réellement correctement que si tous les nœuds ont au moins 4Go de RAM.  
 Sinon les nœuds avec peu de mémoire s'effondrent et le cluster souffre.  
 Pour activer Longhorn:  
@@ -358,11 +365,17 @@ Pour activer Longhorn:
 cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
 ```
+### OpenEBS/jiva
+C'est une solution plus légère mais sans la belle UI de Longhorn.  
+Il est nécessaire de monter les stockages dans /storage sur les membres disposants de stockage de blocs.  
+```sh
+cluster_init_install_openebs
+```
 
 ## Gestionnaire de certificat
-Vu que nous avons notre propre autorité de certification, cert-manager est automatique déployé pendant la phase de post-installation.  
+Vu que nous avons notre propre autorité de certification, cert-manager est automatiquement déployé pendant la phase de post-installation.  
 Cela permet de créer automatiquement des certificats.  
-Cela est très utile pour générer les certificats des Ingress -les routes htts entrantes dans le cluster-  
+Cela est très utile pour générer les certificats des Ingress -les routes https entrantes dans le cluster-  
 Pour créer automatiquement un certificat pour l'hôte monhote.example.org qui sera stocké dans le secret monhote-cert:
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -380,7 +393,7 @@ spec:
   dnsNames: [monhote.example.org]
   secretName: monhote-certs
   issuerRef:
-    name: compagy-ca-issuer
+    name: company-ca-issuer
     kind: ClusterIssuer
 ```
 Pour que la l'Ingress crée automatiquement son certificat pour accèder au service monservice et l'exposer en tant que https://monhote.example.com/:
