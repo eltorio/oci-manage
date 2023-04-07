@@ -39,6 +39,7 @@
     - [Effacement](#effacement)
     - [Réinstallation](#réinstallation)
   - [Stockage persistant](#stockage-persistant)
+  - [Gestionnaire de certificat](#gestionnaire-de-certificat)
   - [Ouverture sur le monde extérieur](#ouverture-sur-le-monde-extérieur)
   - [Accès aux tableaux de bord](#accès-aux-tableaux-de-bord)
   - [Bird sur le control-plane](#bird-sur-le-control-plane)
@@ -356,6 +357,60 @@ Pour activer Longhorn:
 ```sh
 cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
+```
+
+## Gestionnaire de certificat
+Vu que nous avons notre propre autorité de certification, cert-manager est automatique déployé pendant la phase de post-installation.  
+Cela permet de créer automatiquement des certificats.  
+Cela est très utile pour générer les certificats des Ingress -les routes htts entrantes dans le cluster-  
+Pour créer automatiquement un certificat pour l'hôte monhote.example.org qui sera stocké dans le secret monhote-cert:
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: monhote-cert
+  namespace: default
+  labels:
+     k8s-app: monapp
+spec:
+  subject:
+      organizations: 
+        - macompagnie
+  commonName: monhote.example.org
+  dnsNames: [monhote.example.org]
+  secretName: monhote-certs
+  issuerRef:
+    name: compagy-ca-issuer
+    kind: ClusterIssuer
+```
+Pour que la l'Ingress crée automatiquement son certificat pour accèder au service monservice et l'exposer en tant que https://monhote.example.com/:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: company-ca-issuer
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+  creationTimestamp: "2023-04-07T05:27:16Z"
+  name: monhote-ingress
+  namespace: default
+spec:
+  rules:
+  - host: monhote.example.org
+    http:
+      paths:
+      - backend:
+          service:
+            name: monservice
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts: [monhote.example.org]
+    secretName: monhote-cert
 ```
 ## Ouverture sur le monde extérieur
 Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relaie le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
