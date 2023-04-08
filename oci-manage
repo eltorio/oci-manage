@@ -1422,10 +1422,25 @@ function cluster_init_install_openebs() {
             --set jiva.replicas=$JIVA_REPLICAS \
             --set jiva.defaultStoragePath=$STORAGE_LOCATION \
             --set openebs-ndm.enabled=true \
-            --set localpv-provisioner.enabled=true
+            --set localpv-provisioner.enabled=true \
+            --set nfs-provisioner.enabled=true
         kubectl patch storageclass openebs-jiva-csi-default \
             -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-
+        cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: openebs-rwx
+  annotations:
+    openebs.io/cas-type: nfsrwx
+    cas.openebs.io/config: |
+      - name: NFSServerType
+        value: "kernel"
+      - name: BackendStorageClass
+        value: "openebs-hostpath"
+provisioner: openebs.io/nfsrwx
+reclaimPolicy: Delete
+EOF
     fi
 }
 function build_lookbusy() {
@@ -1494,7 +1509,7 @@ data:
               - replacement: kubernetes.default.svc.cluster.local:443
                 target_label: __address__
               - regex: (.+)
-                replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+                replacement: /api/v1/nodes/\${1}/proxy/metrics/cadvisor
                 source_labels:
                   - __meta_kubernetes_node_name
                 target_label: __metrics_path__
@@ -1515,7 +1530,7 @@ data:
               - replacement: kubernetes.default.svc.cluster.local:443
                 target_label: __address__
               - regex: (.+)
-                replacement: /api/v1/nodes/${1}/proxy/metrics
+                replacement: /api/v1/nodes/\${1}/proxy/metrics
                 source_labels:
                   - __meta_kubernetes_node_name
                 target_label: __metrics_path__
@@ -1593,7 +1608,6 @@ EOF
         helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2 -n $NAMESPACE
         helm install nodeexporter prometheus-community/prometheus-node-exporter -n $NAMESPACE
         cat <<EOF | kubectl apply -n $NAMESPACE -f -
-
 kind: ConfigMap
 metadata:
   name: grafana-agent-logs
@@ -1648,7 +1662,7 @@ data:
             - action: labelmap
               regex: __meta_kubernetes_pod_label_(.+)
             - action: replace
-              replacement: $1
+              replacement: \$1
               separator: /
               source_labels:
                 - __meta_kubernetes_namespace
@@ -1666,7 +1680,7 @@ data:
               source_labels:
                 - __meta_kubernetes_pod_container_name
               target_label: container
-            - replacement: /var/log/pods/*$1/*.log
+            - replacement: /var/log/pods/*\$1/*.log
               separator: /
               source_labels:
                 - __meta_kubernetes_pod_uid
@@ -1676,7 +1690,7 @@ data:
     
 EOF
         MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
-        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/"| kubectl apply -n $NAMESPACE -f -
     fi
 }
 function cluster_help() {

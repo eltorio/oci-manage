@@ -44,6 +44,7 @@
   - [Gestionnaire de certificat](#gestionnaire-de-certificat)
   - [Ouverture sur le monde extérieur](#ouverture-sur-le-monde-extérieur)
   - [Accès aux tableaux de bord](#accès-aux-tableaux-de-bord)
+  - [Grafana](#grafana)
   - [Bird sur le control-plane](#bird-sur-le-control-plane)
 
 ## Objectifs
@@ -453,6 +454,24 @@ Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
 - `https://HUBBLE_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
 - `https://DASHBOARD_DNS_NAMES` (login à l'aide du jeton obtenu avec dashboard_get_token)
 - `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
+## Grafana
+Si vous besoin vous pouvez automatiquement relier votre cluster laboratoire à une instance gratuite [Grafanan](https://grafana.com/)  
+Ajustez les valeurs  
+```sh
+GRAFANA_PROMETHEUS_USERNAME="123456"
+GRAFANA_PROMETHEUS_PASSWORD="MTFhM2UyMjkwODQzNDliYzI1ZDk3ZTI5MzkzY2VkMWQgIC0K"
+GRAFANA_LOGS_USERNAME="654321"
+GRAFANA_LOGS_PASSWORD="MTFhM2UyMjkwODQzNDliYzI1ZDk3ZTI5MzkzY2VkMWQgIC0K"
+```
+les valeurs sont disponibles dans la section Home/Administration/Data sources de Grafana.  
+```sh
+cluster_init_create_post_install_grafana
+```
+Pour l'effacer
+```sh
+kubectl 
+```
+
 ## Bird sur le control-plane
 TODO
 ```sh
