@@ -232,6 +232,8 @@ Pour activer les fonctions il faut simplement faire `. ./oci-manage`
 EXPLOITANT=adminuser
 PASS=unvraimotdepasse
 NODE_FQDN=node.fqdn
+MAC=02:00:00:00:00:0F
+IP=10.0.1.267
 init_create_admin_user_with_key $NODE_FQDN $EXPLOITANT $PASS
 init_allow_keys_for_root $NODE_FQDN $EXPLOITANT $PASS
 init_deploy_admin_keys_to_admin_user $NODE_FQDN $EXPLOITANT
@@ -243,7 +245,7 @@ init_install_cri_docker $NODE_FQDN
 init_install_software $NODE_FQDN $EXPLOITANT
 # sur les VM avec une carte réseau privée et une publique
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
-init_create_private_interface $NODE_FQDN macaddress privateipaddress
+init_create_private_interface $NODE_FQDN $MAC $IP
 ```
 # Quand tous les nœuds sont pré-installés
 Mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
