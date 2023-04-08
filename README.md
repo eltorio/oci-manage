@@ -1,4 +1,4 @@
-# Labo OCI-Kubernetes *bare metal*
+# Laboratoire Oracle OCI-Kubernetes *bare metal*
 
 **Ce projet n'a pas vocation a être réutilisé il s'agit en quelque sorte de notes bien structurées**  
 **Si il vous est utile tant mieux !**  
@@ -78,9 +78,12 @@ Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre 
  
 ### Création des instances *les nœuds*
 Chaque nœud est soit:
-- une instance VM.Standard.A1.Flex (arm64)
-- une instance VM.Standard.E2.1.Micro (amd64).  
-  
+- **une instance VM.Standard.A1.Flex (arm64)**
+<img width="1223" alt="arm64" src="https://user-images.githubusercontent.com/6966689/230726371-91a67bb4-8830-43df-b36e-7b97596246cb.png">
+
+- **une instance VM.Standard.E2.1.Micro (amd64)** .   
+ <img width="1190" alt="amd64" src="https://user-images.githubusercontent.com/6966689/230726465-cbab9f60-0a1a-4ce9-ab37-300301f6af6a.png">
+
 Chaque instance est déployée avec l'image Ubuntu 22.04 minimale. Pourquoi? Parce que c'est l'OS que nous connaissons le mieux. 
 Au moment du déploiement de chaque machine virtuelle, nous avons mis une clef SSH que nous appelons la clef "super privée".  Elle nous sert à initier le déploiement.
 ### Réseau
@@ -114,8 +117,14 @@ Admit group Administrators of tenancy Requestor to manage local-peering-to in co
 Admit group Administrators of tenancy Requestor to associate local-peering-gateways in tenancy Requestor with local-peering-gateways in compartment <acceptor-compartment>
 ```
 - Liaison des passerelles d'appairage locales (local peering gateways)
-  - dans la console OCI/VCN de l'acceptant copier l'ocid de la passerelle "acceptante"
-  - dans la console OCI/VCN du requérant à droite de la passerelle correspondante on trouve dans le menu "Établir une connexion d'apparage. Il convient d'y coller l'ocid précédent… Si il y a un problème d'autorisation il vient probablement des stratégies mal définies. Voir https://docs.oracle.com/fr-fr/iaas/Content/Network/Tasks/localVCNpeering.htm#Step3 
+  - dans la console OCI/VCN de l'acceptant copier l'ocid de la passerelle "acceptante". 
+  <img width="1845" alt="acceptor2" src="https://user-images.githubusercontent.com/6966689/230727586-09d0a2b4-f3d5-4f96-8b3a-dfd3f1a27988.png">
+  
+  - dans la console OCI/VCN du requérant à droite de la passerelle correspondante on trouve dans le menu "Établir une connexion d'apparage. Il convient d'y coller l'ocid précédent… Si il y a un problème d'autorisation il vient probablement des stratégies mal définies. Voir https://docs.oracle.com/fr-fr/iaas/Content/Network/Tasks/localVCNpeering.htm#Step3  
+<img width="1847" alt="requestror" src="https://user-images.githubusercontent.com/6966689/230727600-2de47379-553d-43bf-84f8-2629f176e81e.png">
+
+
+
 # Installation du control-plane
 ## 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation
 ```sh
@@ -185,6 +194,9 @@ sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
 sudo tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
 rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
 ```
+Pour vérifier que tout fonctionne `cilium status`.  
+<img width="1083" alt="cilium" src="https://user-images.githubusercontent.com/6966689/230726758-95a7b598-f8a9-4ec1-a597-0a2f069868a3.png">
+
 ## creation manuelle du fichier `/etc/hosts` du control plane
 Le fichier host du contrôle plane permet une résolution de nom statique.  
 ```hosts
@@ -467,6 +479,8 @@ les valeurs sont disponibles dans la section Home/Administration/Data sources de
 ```sh
 cluster_init_create_post_install_grafana
 ```
+<img width="1916" alt="grafana" src="https://user-images.githubusercontent.com/6966689/230726015-9a90ca9c-e01d-42d0-b693-03daa665b5c0.png">
+
 Pour l'effacer
 ```sh
 kubectl 
