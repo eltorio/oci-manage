@@ -4,7 +4,7 @@
 **Si il vous est utile tant mieux !**  
 **Si vous avez des corrections, des ajouts, des idées ils sont les bienvenus**  
 
-- [Labo OCI-Kubernetes *bare metal*](#labo-oci-kubernetes-bare-metal)
+- [Laboratoire Oracle OCI-Kubernetes *bare metal*](#laboratoire-oracle-oci-kubernetes-bare-metal)
   - [Objectifs](#objectifs)
   - [Pré-requis](#pré-requis)
   - [Architecture](#architecture)
@@ -232,7 +232,7 @@ Pour activer les fonctions il faut simplement faire `. ./oci-manage`
 EXPLOITANT=adminuser
 PASS=unvraimotdepasse
 NODE_FQDN=node.fqdn
-init_create_admin_user_with_key node.fqdn $EXPLOITANT $PASS
+init_create_admin_user_with_key $NODE_FQDN $EXPLOITANT $PASS
 init_allow_keys_for_root $NODE_FQDN $EXPLOITANT $PASS
 init_deploy_admin_keys_to_admin_user $NODE_FQDN $EXPLOITANT
 init_set_ramdisk $NODE_FQDN
