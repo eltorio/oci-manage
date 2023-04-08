@@ -28,3 +28,4 @@ oci-manage-config.sh
 bird.conf
 miscellaneous/ciliumbgp.yaml
 .gitconfig
+miscellaneous/lb

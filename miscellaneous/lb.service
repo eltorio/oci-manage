@@ -1,0 +1,8 @@
+[Unit]
+Description=Look busy (at 15%)
+
+[Service]
+ExecStart=/usr/local/bin/lb -c 15
+
+[Install]
+WantedBy=multi-user.target

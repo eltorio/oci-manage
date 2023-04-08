@@ -1423,6 +1423,26 @@ function cluster_init_install_openebs() {
 
     fi
 }
+function build_lookbusy() {
+    gcc miscellaneous/lb.c -lm -o miscellaneous/lb
+}
+
+function cluster_deploy_lookbusy() {
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
+    else
+        for MEMBER in $CLUSTER_MEMBERS; do
+            ARCH=`get_host_arch $MEMBER`
+            if [ "$ARCH" == "arm64" ]; then
+                scp root@$ARM_SRC:/usr/local/bin/lb root@$MEMBER:/usr/local/bin/lb
+            else
+                scp root@$X86_64_SRC:/usr/local/bin/lb root@$MEMBER:/usr/local/bin/lb
+            fi
+            scp miscellaneous/lb.service root@$MEMBER:/lib/systemd/system/lb.service
+            ssh root@$MEMBER "systemctl enable lb.service --now"
+        done
+    fi
+}
 function cluster_help() {
     echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
     echo "cluster_apt_install:                               install an apt package on all the cluster"
