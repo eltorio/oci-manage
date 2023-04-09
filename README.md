@@ -27,6 +27,7 @@
 - [Installation des nœuds actifs (workers) depuis le control-plane](#installation-des-nœuds-actifs-workers-depuis-le-control-plane)
 - [Quand tous les nœuds sont pré-installés](#quand-tous-les-nœuds-sont-pré-installés)
   - [déployer le fichier hosts](#déployer-le-fichier-hosts)
+  - [déployer la configuration HAProxy](#déployer-la-configuration-haproxy)
   - [mise à jour des paquets:](#mise-à-jour-des-paquets)
   - [redémarrer le cluster](#redémarrer-le-cluster)
   - [déployer un fichier](#déployer-un-fichier)
@@ -254,8 +255,13 @@ init_create_private_interface $NODE_FQDN $MAC $IP
 Mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
 Avec oci-manage on peut alors effectuer des tâches "globales"
 ## déployer le fichier hosts
+- Créer manuellement le fichier `sudo vi /etc/hosts` du control-plane puis déployez le.  
 ```sh
 cluster_deploy_hosts
+```
+## déployer la configuration HAProxy
+```sh
+cluster_deploy_haproxy_config_on_members
 ```
 ## mise à jour des paquets:  
 ```sh
