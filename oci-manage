@@ -1,5 +1,6 @@
 #!/bin/bash
 #### default values (real are in ./oci-manage-config.sh )
+OCI=~/bin/oci
 PRIVATE_INTERFACE_FILE="60-private-interface.yaml"
 CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
 CONTROL_PLANE_LOCAL=master
@@ -321,7 +322,7 @@ function cluster_reset_storage() {
 function cluster_reset_members() {
     for MEMBER in $CLUSTER_MEMBERS; do
         echo $MEMBER
-        ssh root@$MEMBER "kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock && \
+        ssh root@$MEMBER "systemctl stop docker; kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock && \
         rm -rf ~/.ku* && \
         rm -rf /etc/systemd/system/kubelnet.service.d && \
         rm -rf /var/lib/kubelet/ && \
@@ -1690,10 +1691,47 @@ data:
     
 EOF
         MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
-        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/"| kubectl apply -n $NAMESPACE -f -
+        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
     fi
 }
+
+function oci_list_compartment() {
+    if [ "$#" -ne 1 ]; then
+        echo "Illegal number of parameters:" && echo "    usage oci_list_compartment tenancy"
+    else
+        TENANCY=$1
+        $OCI --profile $TENANCY iam compartment list | jq '[ .data[] | select (.name != "ManagedCompartmentForPaaS") | { name: ."name", ocid:."id"} ]'
+    fi
+}
+
+function oci_list_instance_running() {
+    if [ "$#" -ne 1 ]; then
+        echo "Illegal number of parameters:" && echo "    usage oci_list_instance_running tenancy compartment_ocid"
+    else
+        TENANCY=$1
+        COMPARTMENT_OCID=$2
+        $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | select(."lifecycle-state" == "RUNNING" ) | { name:."display-name",ocid:."id" } ]'
+
+
+    fi
+}
+
+function oci_list_vcn() {
+    if [ "$#" -ne 2 ]; then
+        echo "Illegal number of parameters:" && echo "    usage oci_list_vcn tenancy compartment_ocid"
+    else
+        TENANCY=$1
+        COMPARTMENT_OCID=$2
+        $OCI --profile $TENANCY network vcn list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | {ocid:.id, name:."display-name" , cidr:."cidr-block"} ]'
+
+
+    fi
+}
+
 function cluster_help() {
+    echo "oci_list_compartment:                              list all the tenancy compartments"
+    echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
+    echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
     echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
     echo "cluster_apt_install:                               install an apt package on all the cluster"
     echo "cluster_cilium_full_status:                        issue cilium status on each member"

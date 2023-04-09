@@ -29,3 +29,7 @@ bird.conf
 miscellaneous/ciliumbgp.yaml
 .gitconfig
 miscellaneous/lb
+lib/
+bin/
+.oci/
+.bashrc.backup
