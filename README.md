@@ -381,6 +381,9 @@ cluster_reset_control_plane
 rm -f ~/.kube/config
 sudo rm -f /root/.kube/config
 cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
+# si besoin
+cluster_init_install_openebs
+cluster_init_create_post_install_grafana
 ```
 
 ## Stockage persistant 
