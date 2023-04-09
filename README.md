@@ -26,6 +26,7 @@
   - [definitions du firewall](#definitions-du-firewall)
 - [Installation des nœuds actifs (workers) depuis le control-plane](#installation-des-nœuds-actifs-workers-depuis-le-control-plane)
 - [Quand tous les nœuds sont pré-installés](#quand-tous-les-nœuds-sont-pré-installés)
+  - [déployer le fichier hosts](#déployer-le-fichier-hosts)
   - [mise à jour des paquets:](#mise-à-jour-des-paquets)
   - [redémarrer le cluster](#redémarrer-le-cluster)
   - [déployer un fichier](#déployer-un-fichier)
@@ -231,7 +232,8 @@ Pour activer les fonctions il faut simplement faire `. ./oci-manage`
 ```sh
 EXPLOITANT=adminuser
 PASS=unvraimotdepasse
-NODE_FQDN=node.fqdn
+NODE_FQDN=oci-node.tenancy.oraclevcn.com
+PRIVATE_HOST_NAME=oci-node
 MAC=02:00:00:00:00:0F
 IP=10.0.1.267
 init_create_admin_user_with_key $NODE_FQDN $EXPLOITANT $PASS
@@ -239,6 +241,7 @@ init_allow_keys_for_root $NODE_FQDN $EXPLOITANT $PASS
 init_deploy_admin_keys_to_admin_user $NODE_FQDN $EXPLOITANT
 init_set_ramdisk $NODE_FQDN
 init_set_iptables $NODE_FQDN
+init_set_hostname $NODE_FQDN $PRIVATE_HOST_NAME
 #attention ne fonctionne que si cri-dockerd existe dans le cluster pour la bonne architecture
 #voir les variables ARM_SRC et X86_64_SRC de oci-manage-config.sh
 init_install_cri_docker $NODE_FQDN
@@ -250,6 +253,10 @@ init_create_private_interface $NODE_FQDN $MAC $IP
 # Quand tous les nœuds sont pré-installés
 Mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
 Avec oci-manage on peut alors effectuer des tâches "globales"
+## déployer le fichier hosts
+```sh
+cluster_deploy_hosts
+```
 ## mise à jour des paquets:  
 ```sh
 cluster_apt_dist_upgrade
