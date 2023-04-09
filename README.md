@@ -1,66 +1,66 @@
-# Laboratoire Oracle OCI-Kubernetes *bare metal*
+# 1. Laboratoire Oracle OCI-Kubernetes *bare metal*
 
 **Ce projet n'a pas vocation a être réutilisé il s'agit en quelque sorte de notes bien structurées**  
 **Si il vous est utile tant mieux !**  
 **Si vous avez des corrections, des ajouts, des idées ils sont les bienvenus**  
 
-- [Laboratoire Oracle OCI-Kubernetes *bare metal*](#laboratoire-oracle-oci-kubernetes-bare-metal)
-  - [Objectifs](#objectifs)
-  - [Pré-requis](#pré-requis)
-  - [Architecture](#architecture)
-    - [Structure des locations](#structure-des-locations)
-    - [Choix](#choix)
-    - [Création des instances *les nœuds*](#création-des-instances-les-nœuds)
-    - [Réseau](#réseau)
-      - [Cas multi-locations](#cas-multi-locations)
-        - [Création des passerelles d'appairage locales](#création-des-passerelles-dappairage-locales)
-          - [Requérant](#requérant)
-          - ["Acceptant"](#acceptant)
-- [Installation du control-plane](#installation-du-control-plane)
-  - [1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation](#1---connection-à-distance-sur-linstance-avec-la-clef-super-privée-et-création-de-lutilisateur-dexploitation)
-  - [2 - login en tant qu'exploitant](#2---login-en-tant-quexploitant)
-  - [3 - installation des logiciels](#3---installation-des-logiciels)
-  - [compilation de cri-dockerd](#compilation-de-cri-dockerd)
-  - [installation du client cilium](#installation-du-client-cilium)
-  - [creation manuelle du fichier `/etc/hosts` du control plane](#creation-manuelle-du-fichier-etchosts-du-control-plane)
-  - [definitions du firewall](#definitions-du-firewall)
-- [Installation des nœuds actifs (workers) depuis le control-plane](#installation-des-nœuds-actifs-workers-depuis-le-control-plane)
-- [Quand tous les nœuds sont pré-installés](#quand-tous-les-nœuds-sont-pré-installés)
-  - [déployer le fichier hosts](#déployer-le-fichier-hosts)
-  - [déployer la configuration HAProxy](#déployer-la-configuration-haproxy)
-  - [mise à jour des paquets:](#mise-à-jour-des-paquets)
-  - [redémarrer le cluster](#redémarrer-le-cluster)
-  - [déployer un fichier](#déployer-un-fichier)
-  - [déployer le firewall](#déployer-le-firewall)
-  - [(re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
-- [Déploiement du cluster](#déploiement-du-cluster)
-  - [Autorité de certification](#autorité-de-certification)
-  - [Control-Plane](#control-plane)
-  - [Workers](#workers)
-  - [Effacement du cluster et résinstallation du cluster](#effacement-du-cluster-et-résinstallation-du-cluster)
-    - [Effacement](#effacement)
-    - [Réinstallation](#réinstallation)
-  - [Stockage persistant](#stockage-persistant)
-    - [Longhorn](#longhorn)
-    - [OpenEBS/jiva](#openebsjiva)
-  - [Gestionnaire de certificat](#gestionnaire-de-certificat)
-  - [Ouverture sur le monde extérieur](#ouverture-sur-le-monde-extérieur)
-  - [Accès aux tableaux de bord](#accès-aux-tableaux-de-bord)
-  - [Grafana](#grafana)
-  - [Bird sur le control-plane](#bird-sur-le-control-plane)
+- [1. Laboratoire Oracle OCI-Kubernetes *bare metal*](#1-laboratoire-oracle-oci-kubernetes-bare-metal)
+  - [1.1. Objectifs](#11-objectifs)
+  - [1.2. Pré-requis](#12-pré-requis)
+  - [1.3. Architecture](#13-architecture)
+    - [1.3.1. Structure des locations](#131-structure-des-locations)
+    - [1.3.2. Choix](#132-choix)
+    - [1.3.3. Création des instances *les nœuds*](#133-création-des-instances-les-nœuds)
+    - [1.3.4. Réseau](#134-réseau)
+      - [1.3.4.1. Cas multi-locations](#1341-cas-multi-locations)
+        - [1.3.4.1.1. Création des passerelles d'appairage locales](#13411-création-des-passerelles-dappairage-locales)
+          - [1.3.4.1.1.1. Requérant](#134111-requérant)
+          - [1.3.4.1.1.2. "Acceptant"](#134112-acceptant)
+- [2. Installation du control-plane](#2-installation-du-control-plane)
+  - [2.1. 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation](#21-1---connection-à-distance-sur-linstance-avec-la-clef-super-privée-et-création-de-lutilisateur-dexploitation)
+  - [2.2. 2 - login en tant qu'exploitant](#22-2---login-en-tant-quexploitant)
+  - [2.3. 3 - installation des logiciels](#23-3---installation-des-logiciels)
+  - [2.4. compilation de cri-dockerd](#24-compilation-de-cri-dockerd)
+  - [2.5. installation du client cilium](#25-installation-du-client-cilium)
+  - [2.6. creation manuelle du fichier `/etc/hosts` du control plane](#26-creation-manuelle-du-fichier-etchosts-du-control-plane)
+  - [2.7. definitions du firewall](#27-definitions-du-firewall)
+- [3. Installation des nœuds actifs (workers) depuis le control-plane](#3-installation-des-nœuds-actifs-workers-depuis-le-control-plane)
+- [4. Quand tous les nœuds sont pré-installés](#4-quand-tous-les-nœuds-sont-pré-installés)
+  - [4.1. déployer le fichier hosts](#41-déployer-le-fichier-hosts)
+  - [4.2. déployer la configuration HAProxy](#42-déployer-la-configuration-haproxy)
+  - [4.3. mise à jour des paquets:](#43-mise-à-jour-des-paquets)
+  - [4.4. redémarrer le cluster](#44-redémarrer-le-cluster)
+  - [4.5. déployer un fichier](#45-déployer-un-fichier)
+  - [4.6. déployer le firewall](#46-déployer-le-firewall)
+  - [4.7. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#47-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
+- [5. Déploiement du cluster](#5-déploiement-du-cluster)
+  - [5.1. Autorité de certification](#51-autorité-de-certification)
+  - [5.2. Control-Plane](#52-control-plane)
+  - [5.3. Workers](#53-workers)
+  - [5.4. Effacement du cluster et résinstallation du cluster](#54-effacement-du-cluster-et-résinstallation-du-cluster)
+    - [5.4.1. Effacement](#541-effacement)
+    - [5.4.2. Réinstallation](#542-réinstallation)
+  - [5.5. Stockage persistant](#55-stockage-persistant)
+    - [5.5.1. Longhorn](#551-longhorn)
+    - [5.5.2. OpenEBS/jiva](#552-openebsjiva)
+  - [5.6. Gestionnaire de certificat](#56-gestionnaire-de-certificat)
+  - [5.7. Ouverture sur le monde extérieur](#57-ouverture-sur-le-monde-extérieur)
+  - [5.8. Accès aux tableaux de bord](#58-accès-aux-tableaux-de-bord)
+  - [5.9. Grafana](#59-grafana)
+  - [5.10. Bird sur le control-plane](#510-bird-sur-le-control-plane)
 
-## Objectifs
+## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
 Essayer d'automatiser au maximum les tâches de déploiement sans utiliser d'outils spécifiques.  
-## Pré-requis
+## 1.2. Pré-requis
 - un compte oracle OCI gratuit par personne dans la même région
 - une clef ssh "super privée"
 - une autorité de certification racine pour générer tous les certificats
 - beaucoup de temps !
 
-## Architecture
+## 1.3. Architecture
 Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre VM dans sa location.  
-### Structure des locations
+### 1.3.1. Structure des locations
 - utilisation de la même région OCI
 - un compartiment enfant du compartiment racine contenant tous les objets
 - un réseau privé virtuel avec un CIDR du type 10.n.0.0/16
@@ -69,7 +69,7 @@ Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre 
   - privé: CIDR 10.n.1.0/24
 - n-1 passerelles LPG (local peering gateways) avec les noms des autres locations
 - un VPN site à site entre la location et le routeur Cisco du labo avec BGP
-### Choix
+### 1.3.2. Choix
 | Élément    | Choix              |
 | :--------- | :----------------- |
 | Cluster    | Kubernetes v1.26.3 |
@@ -78,7 +78,7 @@ Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre 
 | Connexions | VXLAN              |
 | VPN        | IKEv2              |
  
-### Création des instances *les nœuds*
+### 1.3.3. Création des instances *les nœuds*
 Chaque nœud est soit:
 - **une instance VM.Standard.A1.Flex (arm64)**
 <img width="1223" alt="arm64" src="https://user-images.githubusercontent.com/6966689/230726371-91a67bb4-8830-43df-b36e-7b97596246cb.png">
@@ -88,7 +88,7 @@ Chaque nœud est soit:
 
 Chaque instance est déployée avec l'image Ubuntu 22.04 minimale. Pourquoi? Parce que c'est l'OS que nous connaissons le mieux. 
 Au moment du déploiement de chaque machine virtuelle, nous avons mis une clef SSH que nous appelons la clef "super privée".  Elle nous sert à initier le déploiement.
-### Réseau
+### 1.3.4. Réseau
 - Création des règles de sécurité
   - Réseau public
     - pas de changement
@@ -97,21 +97,21 @@ Au moment du déploiement de chaque machine virtuelle, nous avons mis une clef S
       - 0.0.0.0/0 => tous les protocoles
       - ::/0 => tous les protocoles  
   
-#### Cas multi-locations
+#### 1.3.4.1. Cas multi-locations
 Si les nœuds sont dans des locations différentes il faut relier les réseaux privés de chaque location:  
 
-##### Création des passerelles d'appairage locales  
+##### 1.3.4.1.1. Création des passerelles d'appairage locales  
 - Créer des stratégies  
   - Elles doivent être créées au niveau du compartiment racine  
   - Stratégies du requérant et des "acceptants":  
   
-###### Requérant
+###### 1.3.4.1.1.1. Requérant
 ```sql
 Allow group Administrators to manage local-peering-from in compartment <requestor-compartment>
 Endorse group Administrators to manage local-peering-to in any-tenancy
 Endorse group Administrators to associate local-peering-gateways in compartment <requestor-compartment> with local-peering-gateways in any-tenancy
 ```
-###### "Acceptant"
+###### 1.3.4.1.1.2. "Acceptant"
 ```sql
 Define tenancy Requestor as <requestor_tenancy_OCID>
 Define group Administrators as <RequestorGrp_OCID>
@@ -127,8 +127,8 @@ Admit group Administrators of tenancy Requestor to associate local-peering-gatew
 
 
 
-# Installation du control-plane
-## 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation
+# 2. Installation du control-plane
+## 2.1. 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation
 ```sh
 ssh -i clef_super_privée ubuntu@instance_ip
 USERNAME=adminuser
@@ -143,7 +143,7 @@ sudo cp /home/ubuntu/.ssh/authorized_keys /home/$USERNAME/.ssh/
 sudo -u "$USERNAME" sh -c "cd chmod go-rwx .ssh"
 exit
 ```
-## 2 - login en tant qu'exploitant
+## 2.2. 2 - login en tant qu'exploitant
 ```sh
 ssh -i clef_super_privée adminuser@instance_ip
 # définition du nom d'hôte
@@ -156,7 +156,7 @@ sudo systemctl restart ssh
 #modification du service docker
 sudo sed -i.bak '/^\[Service\].*/a MountFlags=shared' /lib/systemd/system/docker.service
 ```
-## 3 - installation des logiciels
+## 2.3. 3 - installation des logiciels
 ```sh
 # installation du repo officiel Docker
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
@@ -174,7 +174,7 @@ sudo apt-get update && sudo apt-get install vim wireguard iputils-ping docker-ce
 sudo usermod -aG docker $USER
 sudo reboot
 ```
-## compilation de cri-dockerd  
+## 2.4. compilation de cri-dockerd  
 *Attention si le cluster est multi-architecture il faut avoir une version de l'executable pour chaque architecture*  
 ```sh
 git clone https://github.com/Mirantis/cri-dockerd.git
@@ -186,7 +186,7 @@ sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
 sudo cp -a packaging/systemd/* /etc/systemd/system
 sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
 ```
-## installation du client cilium
+## 2.5. installation du client cilium
 ```sh
 CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/master/stable.txt)
 CLI_ARCH=$(dpkg --print-architecture)
@@ -199,7 +199,7 @@ rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
 Pour vérifier que tout fonctionne `cilium status`.  
 <img width="1083" alt="cilium" src="https://user-images.githubusercontent.com/6966689/230726758-95a7b598-f8a9-4ec1-a597-0a2f069868a3.png">
 
-## creation manuelle du fichier `/etc/hosts` du control plane
+## 2.6. creation manuelle du fichier `/etc/hosts` du control plane
 Le fichier host du contrôle plane permet une résolution de nom statique.  
 ```hosts
 10.0.1.23       node1       node1.private.tenancy1.oraclevcn.com
@@ -209,7 +209,7 @@ Le fichier host du contrôle plane permet une résolution de nom statique.
 10.1.0.201      node2       node2.private.tenancy2.oraclevcn.com
 10.1.1.186                  node2.public.tenancy2.oraclevcn.com
 ```
-## definitions du firewall
+## 2.7. definitions du firewall
 dans /etc/iptables/rules.v4 a été ajouté sous l'autorisation du port SSH (22):  
 ```sh
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT -m comment --comment "WEB secure incoming"
@@ -223,7 +223,7 @@ dans /etc/iptables/rules.v4 a été ajouté sous l'autorisation du port SSH (22)
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 10259 -j ACCEPT
 -A INPUT -p udp -m state --state NEW -m udp --dport 51820 -j ACCEPT -m comment --comment "Wireguard UDP port"
 ```
-# Installation des nœuds actifs (workers) depuis le control-plane
+# 3. Installation des nœuds actifs (workers) depuis le control-plane
 **Cela ne peut être fait que si les réseaux privés sont interconnectés**  
 Jettez un coup d'œil au script `oci-manage`  
 Il contient toutes les fonctionsd'automatisations, elles sont non documentées car on manque de courage !  
@@ -251,27 +251,27 @@ init_install_software $NODE_FQDN $EXPLOITANT
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
 init_create_private_interface $NODE_FQDN $MAC $IP
 ```
-# Quand tous les nœuds sont pré-installés
+# 4. Quand tous les nœuds sont pré-installés
 Mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
 Avec oci-manage on peut alors effectuer des tâches "globales"
-## déployer le fichier hosts
+## 4.1. déployer le fichier hosts
 - Créer manuellement le fichier `sudo vi /etc/hosts` du control-plane puis déployez le.  
 ```sh
 cluster_deploy_hosts
 ```
-## déployer la configuration HAProxy
+## 4.2. déployer la configuration HAProxy
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
-## mise à jour des paquets:  
+## 4.3. mise à jour des paquets:  
 ```sh
 cluster_apt_dist_upgrade
 ```
-## redémarrer le cluster
+## 4.4. redémarrer le cluster
 ```sh
 cluster_reboot
 ```
-## déployer un fichier 
+## 4.5. déployer un fichier 
 ```sh
 #en tant que root
 cluster_copy_file_as_root /etc/hosts /etc/hosts
@@ -279,23 +279,23 @@ cluster_copy_file_as_root /etc/hosts /etc/hosts
 cluster_copy_file_as_current_user ~/oci-manage ~/oci-manage
 cluster_copy_file_as_current_user ~/oci-manage-config.sh ~/oci-manage-config.sh
 ```
-## déployer le firewall
+## 4.6. déployer le firewall
 ```sh
 cluster_copy_file_as_root /etc/iptables/rules.v4 /etc/iptables/rules.v4
 cluster_run_on_all_members_as_root "iptables-restore -t /etc/iptables/rules.v4"
 ```
-## (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
+## 4.7. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
 ```sh
 cluster_recreate_private_interface
 cluster_recreate_master_private_interface
 ```
-# Déploiement du cluster
+# 5. Déploiement du cluster
 Normalement toutes les machines sont prêtes, on peut vérifier qu'elles peuvent communiquer entre elles:
 ```sh
 cluster_ping_host_from_members $CONTROL_PLANE_LOCAL
 ```
 C'est tout bon ? On peut passer aux choses sérieuses.
-## Autorité de certification
+## 5.1. Autorité de certification
 pour créer une autorité de certification racine (CA) et une autorité locale (Sub CA) il y a plein de tutos sur Internet. En gros:  
 ```sh
 mkdir ~/certs
@@ -315,13 +315,13 @@ nous avons créé 3 subca:
 - ~/pki/front-proxy.crt et sa clef ~/pki/front-proxy.crt
 - ~/pki/etcd/ca.crt et sa clef ~/pki/etcd/ca.key
 
-## Control-Plane
+## 5.2. Control-Plane
 À l'aide de `oci-manage`  
 ```sh
 cluster_init_create_control_plane
 ```
 
-## Workers
+## 5.3. Workers
 ```sh
 cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
 # petit bug avec le dashboard si il répond toujours 404 il faut le recréer…
@@ -366,9 +366,9 @@ kube-traefik           traefik-d65c6d5cd-d8w4j                                  
 kubernetes-dashboard   dashboard-metrics-scraper-7bc864c59-d9dqf                            1/1     Running   1 (28m ago)    3h
 kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                                1/1     Running   1 (29m ago)    3h
 ```
-## Effacement du cluster et résinstallation du cluster  
+## 5.4. Effacement du cluster et résinstallation du cluster  
 On est dans un labo alors on doit faire des essais il est très simple d'effacer intégralement le cluster et de le remettre dans la configuration initiale. Deux étapes sont nécessaires:  
-### Effacement 
+### 5.4.1. Effacement 
 ```sh
 cluster_reset_members
 # eventuellement une fois les membres disponibles
@@ -376,7 +376,7 @@ cluster_reset_storage
 # control_plane
 cluster_reset_control_plane
 ```
-### Réinstallation
+### 5.4.2. Réinstallation
 ```sh
 rm -f ~/.kube/config
 sudo rm -f /root/.kube/config
@@ -386,9 +386,9 @@ cluster_init_install_openebs
 cluster_init_create_post_install_grafana
 ```
 
-## Stockage persistant 
+## 5.5. Stockage persistant 
 Plusieurs solutions existent.  
-### Longhorn
+### 5.5.1. Longhorn
 Si vos nœuds sont suffisament puissants [Longhorn](https://longhorn.io/) fonctionne à merveille. Il ne fonctionne réellement correctement que si tous les nœuds ont au moins 4Go de RAM.  
 Sinon les nœuds avec peu de mémoire s'effondrent et le cluster souffre.  
 Pour activer Longhorn:  
@@ -396,14 +396,14 @@ Pour activer Longhorn:
 cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
 ```
-### OpenEBS/jiva
+### 5.5.2. OpenEBS/jiva
 C'est une solution plus légère mais sans la belle UI de Longhorn.  
 Il est nécessaire de monter les stockages dans /storage sur les membres disposants de stockage de blocs.  
 ```sh
 cluster_init_install_openebs
 ```
 
-## Gestionnaire de certificat
+## 5.6. Gestionnaire de certificat
 Vu que nous avons notre propre autorité de certification, cert-manager est automatiquement déployé pendant la phase de post-installation.  
 Cela permet de créer automatiquement des certificats.  
 Cela est très utile pour générer les certificats des Ingress -les routes https entrantes dans le cluster-  
@@ -455,7 +455,7 @@ spec:
   - hosts: [monhote.example.org]
     secretName: monhote-cert
 ```
-## Ouverture sur le monde extérieur
+## 5.7. Ouverture sur le monde extérieur
 Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relaie le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
 Pour modifier la configuration il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
 ```sh
@@ -476,7 +476,7 @@ backend k8s-traefik
   - `kube-traefik` son espace de nom
   - `443` est le port tcp.
 
-## Accès aux tableaux de bord
+## 5.8. Accès aux tableaux de bord
 Sur votre DNS faites pointer `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` vers les adresses IP des nœuds que vous ouvrez sur l'extérieur (un seul est suffisant).
 Notez que `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` du fichier `oci-manage-config.sh` sont au pluriel. En effet il s'agit de tableaux bash qui permettent de définir plusieurs nom DNS ainsi par exemple on peut faire pointer `dashboard.domaine.prive` vers l'adresse IP visible depuis l'intérieur du labo et `dashboard.domaine.com` vers l'adresse IP visible depuis Internet. Traefik acceptera les deux noms. Le certificat SSL sera valide pour les deux noms.  
 Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
@@ -484,7 +484,7 @@ Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
 - `https://HUBBLE_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
 - `https://DASHBOARD_DNS_NAMES` (login à l'aide du jeton obtenu avec dashboard_get_token)
 - `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
-## Grafana
+## 5.9. Grafana
 Si vous besoin vous pouvez automatiquement relier votre cluster laboratoire à une instance gratuite [Grafanan](https://grafana.com/)  
 Ajustez les valeurs  
 ```sh
@@ -504,7 +504,7 @@ Pour l'effacer
 kubectl 
 ```
 
-## Bird sur le control-plane
+## 5.10. Bird sur le control-plane
 TODO
 ```sh
 sudo apt install bird
