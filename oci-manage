@@ -1022,9 +1022,9 @@ function cluster_reboot() {
 function cluster_apt_dist_upgrade() {
     for MEMBER in $CLUSTER_MEMBERS; do
         echo $MEMBER
-        ssh root@$MEMBER 'apt update -y && apt dist-upgrade -y && apt upgrade -y'
+        ssh root@$MEMBER 'apt update -y && apt dist-upgrade -y && apt upgrade -y && apt autoremove -y'
     done
-    sudo apt update -y && sudo apt dist-upgrade -y && sudo apt upgrade -y
+    sudo apt update -y && sudo apt dist-upgrade -y && sudo apt upgrade -y && sudo apt autoremove -y
 }
 
 function cluster_apt_install() {
