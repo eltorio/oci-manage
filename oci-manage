@@ -1606,8 +1606,8 @@ EOF
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm repo update
-        helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2 -n $NAMESPACE
-        helm install nodeexporter prometheus-community/prometheus-node-exporter -n $NAMESPACE
+        helm install -n $NAMESPACE --create-namespace ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2
+        helm install -n $NAMESPACE --create-namespace nodeexporter prometheus-community/prometheus-node-exporter
         cat <<EOF | kubectl apply -n $NAMESPACE -f -
 kind: ConfigMap
 metadata:
@@ -1687,11 +1687,112 @@ data:
                 - __meta_kubernetes_pod_uid
                 - __meta_kubernetes_pod_container_name
               target_label: __path__
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-agent-logs
+  namespace: ${NAMESPACE}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grafana-agent-logs
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-agent-logs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grafana-agent-logs
+subjects:
+- kind: ServiceAccount
+  name: grafana-agent-logs
+  namespace: ${NAMESPACE}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: grafana-agent-logs
+  namespace: ${NAMESPACE}
+spec:
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      name: grafana-agent-logs
+  template:
+    metadata:
+      labels:
+        name: grafana-agent-logs
+    spec:
+      containers:
+      - args:
+        - -config.expand-env=true
+        - -config.file=/etc/agent/agent.yaml
+        - -server.http.address=0.0.0.0:80
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        image: grafana/agent:v0.32.1
+        imagePullPolicy: IfNotPresent
+        name: grafana-agent-logs
+        ports:
+        - containerPort: 80
+          name: http-metrics
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /etc/agent
+          name: grafana-agent-logs
+        - mountPath: /var/log
+          name: varlog
+        - mountPath: /var/lib/docker/containers
+          name: varlibdockercontainers
+          readOnly: true
+      serviceAccountName: grafana-agent-logs
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      volumes:
+      - configMap:
+          name: grafana-agent-logs
+        name: grafana-agent-logs
+      - hostPath:
+          path: /var/log
+        name: varlog
+      - hostPath:
+          path: /var/lib/docker/containers
+        name: varlibdockercontainers
+  updateStrategy:
+    type: RollingUpdate
         
     
 EOF
-        MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
-        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
+        # MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
+        # /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
     fi
 }
 
@@ -1712,7 +1813,6 @@ function oci_list_instance_running() {
         COMPARTMENT_OCID=$2
         $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | select(."lifecycle-state" == "RUNNING" ) | { name:."display-name",ocid:."id" } ]'
 
-
     fi
 }
 
@@ -1724,14 +1824,41 @@ function oci_list_vcn() {
         COMPARTMENT_OCID=$2
         $OCI --profile $TENANCY network vcn list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | {ocid:.id, name:."display-name" , cidr:."cidr-block"} ]'
 
-
     fi
 }
 
+function oci_get_all_tenancy_compartment_triplet() {
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage oci_get_all_tenancy_compartment_triplet"
+    else
+        jq '[ .[] | { tenancy:.tenancy, "compartment-ocid":.compartments[0].ocid, "compartment-name":.compartments[0].name } ]' <./oci.json
+    fi
+}
+
+function _json_to_shell() {
+    cat | jq -r '(.[0] | keys_unsorted) as $keys | $keys, map([.[ $keys[] ]|tostring])[] | @sh' | tail -n +2
+}
+
+function oci_get_all_running_instance() {
+    _E=()
+    for ID in $(oci_get_all_tenancy_compartment_triplet | _json_to_shell); do
+        _E+=($ID)
+    done
+    for ((_i = 0; _i < ${#_E[@]}; _i+=3)); do
+        echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
+        TENANCY=`echo ${_E[$_i]} | tr -d '\047' `
+        COMPARTMENT=`echo ${_E[$_i+1]} | tr -d '\047' `
+        $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT
+    done
+    # list $OCI --profile laurentdietsch compute instance list --compartment-id ocid1.compartment.oc1..aaaaaaaa36keiabyhhxpr4tosbkxqmixwtj3carmsqq45vn6hxb4ork7i4wa
+    # reboot $OCI --profile laurentdietsch compute instance action --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljr6pzft5yctoyx6z5udd356h4j5vgolet2halowphpjidg44tvq73a --action RESET
+
+}
 function cluster_help() {
     echo "oci_list_compartment:                              list all the tenancy compartments"
     echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
     echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
+    echo "oci_get_all_tenancy_compartment_triplet:           get all tenancy and compartment ocid from oci.json"
     echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
     echo "cluster_apt_install:                               install an apt package on all the cluster"
     echo "cluster_cilium_full_status:                        issue cilium status on each member"
