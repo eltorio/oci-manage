@@ -1844,14 +1844,18 @@ function oci_get_all_running_instance() {
     for ID in $(oci_get_all_tenancy_compartment_triplet | _json_to_shell); do
         _E+=($ID)
     done
-    for ((_i = 0; _i < ${#_E[@]}; _i+=3)); do
-        echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
-        TENANCY=`echo ${_E[$_i]} | tr -d '\047' `
-        COMPARTMENT=`echo ${_E[$_i+1]} | tr -d '\047' `
-        $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT
+    echo -e "["
+    for ((_i = 0; _i < ${#_E[@]}; _i += 3)); do
+        #echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
+        TENANCY=$(echo ${_E[$_i]} | tr -d '\047')
+        COMPARTMENT=$(echo ${_E[$_i + 1]} | tr -d '\047')
+        if [ $_i != 0 ]; then
+            echo -e ","
+        fi
+        $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT | jq --arg tenancy "$TENANCY" '.data[0] | select(."lifecycle-state" == "RUNNING") | {tenancy:$tenancy,ocid:.id,name:."display-name"}'
     done
-    # list $OCI --profile laurentdietsch compute instance list --compartment-id ocid1.compartment.oc1..aaaaaaaa36keiabyhhxpr4tosbkxqmixwtj3carmsqq45vn6hxb4ork7i4wa
-    # reboot $OCI --profile laurentdietsch compute instance action --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljr6pzft5yctoyx6z5udd356h4j5vgolet2halowphpjidg44tvq73a --action RESET
+    echo "]"
+   # reboot $OCI --profile name compute instance action --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljvaluevq73a --action RESET
 
 }
 function cluster_help() {
