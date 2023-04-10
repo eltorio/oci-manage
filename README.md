@@ -233,23 +233,24 @@ Pour activer les fonctions il faut simplement faire `. ./oci-manage`
 ```sh
 EXPLOITANT=adminuser
 PASS=unvraimotdepasse
-NODE_FQDN=oci-node.tenancy.oraclevcn.com
+NODE_PUBLIC_IP=1.2.3.4
+NODE_PRIVATE_FQDN=oci-node.private.tenancy.oraclevcn.com
 PRIVATE_HOST_NAME=oci-node
-MAC=02:00:00:00:00:0F
-IP=10.0.1.267
-init_create_admin_user_with_key $NODE_FQDN $EXPLOITANT $PASS
-init_allow_keys_for_root $NODE_FQDN $EXPLOITANT $PASS
-init_deploy_admin_keys_to_admin_user $NODE_FQDN $EXPLOITANT
-init_set_ramdisk $NODE_FQDN
-init_set_iptables $NODE_FQDN
-init_set_hostname $NODE_FQDN $PRIVATE_HOST_NAME
+PRIVATE_MAC=02:00:00:00:00:0F
+PRIVATE_IP=10.0.1.267
+init_create_admin_user_with_key $NODE_PUBLIC_IP $EXPLOITANT $PASS
+init_allow_keys_for_root $NODE_PUBLIC_IP $EXPLOITANT $PASS
+init_deploy_admin_keys_to_admin_user $NODE_PUBLIC_IP $EXPLOITANT
+init_set_ramdisk $NODE_PUBLIC_IP
+init_set_iptables $NODE_PUBLIC_IP
+init_set_hostname $NODE_PUBLIC_IP $NODE_PRIVATE_FQDN
 #attention ne fonctionne que si cri-dockerd existe dans le cluster pour la bonne architecture
 #voir les variables ARM_SRC et X86_64_SRC de oci-manage-config.sh
-init_install_cri_docker $NODE_FQDN
-init_install_software $NODE_FQDN $EXPLOITANT
+init_install_cri_docker $NODE_PUBLIC_IP
+init_install_software $NODE_PUBLIC_IP $EXPLOITANT
 # sur les VM avec une carte réseau privée et une publique
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
-init_create_private_interface $NODE_FQDN $MAC $IP
+init_create_private_interface $NODE_PUBLIC_IP $PRIVATE_MAC $PRIVATE_IP
 ```
 # 4. Quand tous les nœuds sont pré-installés
 Mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  

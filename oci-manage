@@ -1840,24 +1840,36 @@ function _json_to_shell() {
 }
 
 function oci_get_all_running_instance() {
-    _E=()
-    for ID in $(oci_get_all_tenancy_compartment_triplet | _json_to_shell); do
-        _E+=($ID)
-    done
-    echo -e "["
-    for ((_i = 0; _i < ${#_E[@]}; _i += 3)); do
-        #echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
-        TENANCY=$(echo ${_E[$_i]} | tr -d '\047')
-        COMPARTMENT=$(echo ${_E[$_i + 1]} | tr -d '\047')
-        if [ $_i != 0 ]; then
-            echo -e ","
-        fi
-        $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT | jq --arg tenancy "$TENANCY" '.data[0] | select(."lifecycle-state" == "RUNNING") | {tenancy:$tenancy,ocid:.id,name:."display-name"}'
-    done
-    echo "]"
-   # reboot $OCI --profile name compute instance action --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljvaluevq73a --action RESET
-
+    if [ "$#" -ne 0 ]; then
+        echo "Illegal number of parameters:" && echo "    usage oci_get_all_running_instance"
+    else
+        _E=()
+        for ID in $(oci_get_all_tenancy_compartment_triplet | _json_to_shell); do
+            _E+=($ID)
+        done
+        echo -e "["
+        for ((_i = 0; _i < ${#_E[@]}; _i += 3)); do
+            #echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
+            TENANCY=$(echo ${_E[$_i]} | tr -d '\047')
+            COMPARTMENT=$(echo ${_E[$_i + 1]} | tr -d '\047')
+            if [ $_i != 0 ]; then
+                echo -e ","
+            fi
+            $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT | jq --arg tenancy "$TENANCY" '.data[0] | select(."lifecycle-state" == "RUNNING") | {tenancy:$tenancy,ocid:.id,name:."display-name"}'
+        done
+        echo "]"
+    fi
+    # reboot $OCI --profile name compute instance action --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljvaluevq73a --action RESET
 }
+function oci_action_instance() {
+    if [ "$#" -ne 2 ]; then
+        echo "Illegal number of parameters:" && echo "    usage oci_action_instance action instance_name"
+    else
+        NAME=$2
+        oci_get_all_running_instance | jq --arg name $NAME '.[] | select(.name == $name)'
+    fi
+}
+
 function cluster_help() {
     echo "oci_list_compartment:                              list all the tenancy compartments"
     echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
