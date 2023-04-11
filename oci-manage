@@ -55,6 +55,7 @@ WG_DATABASE="./wg"
 
 . ./oci-manage-config.sh
 
+K8S_CLUSTER="$CLUSTER_MEMBERS $CONTROL_PLANE_INTERNAL_ADDRESS"
 DASHBOARD_DNS_NAMES_JS=$(
     RES=""
     for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
@@ -865,7 +866,7 @@ function init_get_private_routes() {
         IP=$1
         rm -f /tmp/$IP.tmp
         NEW_MEMBER_SUBNET="$(get_subnet_from_ip $IP)"
-        for DEST_MEMBER in $CLUSTER_MEMBERS; do
+        for DEST_MEMBER in $K8S_CLUSTER; do
             DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
             if [[ "$DEST_MEMBER" != "$IP" ]]; then
                 if [[ "$NEW_MEMBER_SUBNET" != "$DEST_MEMBER_SUBNET" ]]; then
@@ -1215,6 +1216,7 @@ function cluster_ping_host_from_members() {
     else
         HOST=$1
         for MEMBER in $CLUSTER_MEMBERS; do
+            echo "From $MEMBER to $HOST"
             ssh $USER@$MEMBER "ping -c1 $HOST"
         done
     fi
@@ -1859,14 +1861,15 @@ function oci_get_all_running_instance() {
         done
         echo "]"
     fi
-    # reboot $OCI --profile name compute instance action --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljvaluevq73a --action RESET
+    # reboot $OCI --profile name compute instance action  --action RESET --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljvaluevq73a
 }
 function oci_action_instance() {
     if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_action_instance action instance_name"
+        echo "Illegal number of parameters:" && echo "    usage oci_action_instance instance_name action"
     else
-        NAME=$2
-        oci_get_all_running_instance | jq --arg name $NAME '.[] | select(.name == $name)'
+        NAME=$1
+        ACTION=$2
+        oci_get_all_running_instance | jq --arg name $NAME '.[] | select(.name == $name) | .ocid'
     fi
 }
 
