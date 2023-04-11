@@ -2028,6 +2028,8 @@ data:
 EOF
         MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
         /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
+        #workaround
+        kubectl delete -n default StatefulSets/grafana-agent
     fi
 }
 
