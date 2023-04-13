@@ -31,5 +31,7 @@ miscellaneous/ciliumbgp.yaml
 miscellaneous/lb
 lib/
 bin/
+.npm/
 .oci/
 .bashrc.backup
+oci.sctg.eu.org.key
