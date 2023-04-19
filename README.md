@@ -75,7 +75,7 @@ Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre 
 | Élément    | Choix              |
 | :--------- | :----------------- |
 | Cluster    | Kubernetes v1.27.1 |
-| CNI        | Cilium 1.13.1      |
+| CNI        | Cilium 1.13.2      |
 | routage    | BGP                |
 | Connexions | VXLAN              |
 | VPN        | IKEv2              |
@@ -190,13 +190,7 @@ sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd
 ```
 ## 2.5. installation du client cilium
 ```sh
-CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/master/stable.txt)
-CLI_ARCH=$(dpkg --print-architecture)
-if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
-curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
-sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
-sudo tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
-rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+cluster_init_get_cilium_cli
 ```
 Pour vérifier que tout fonctionne `cilium status`.  
 <img width="1083" alt="cilium" src="https://user-images.githubusercontent.com/6966689/230726758-95a7b598-f8a9-4ec1-a597-0a2f069868a3.png">
@@ -389,6 +383,7 @@ cluster_reset_control_plane
 ```sh
 rm -f ~/.kube/config
 sudo rm -f /root/.kube/config
+cluster_init_get_cilium_cli
 cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
 # si besoin
 cluster_init_install_openebs
