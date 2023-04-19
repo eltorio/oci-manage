@@ -35,3 +35,6 @@ bin/
 .oci/
 .bashrc.backup
 oci.sctg.eu.org.key
+go/
+.docker/
+

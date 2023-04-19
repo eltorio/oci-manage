@@ -27,12 +27,13 @@
 - [3. Installation des nœuds actifs (workers) depuis le control-plane](#3-installation-des-nœuds-actifs-workers-depuis-le-control-plane)
 - [4. Quand tous les nœuds sont pré-installés](#4-quand-tous-les-nœuds-sont-pré-installés)
   - [4.1. déployer le fichier hosts](#41-déployer-le-fichier-hosts)
-  - [4.2. déployer la configuration HAProxy](#42-déployer-la-configuration-haproxy)
-  - [4.3. mise à jour des paquets:](#43-mise-à-jour-des-paquets)
-  - [4.4. redémarrer le cluster](#44-redémarrer-le-cluster)
-  - [4.5. déployer un fichier](#45-déployer-un-fichier)
-  - [4.6. déployer le firewall](#46-déployer-le-firewall)
-  - [4.7. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#47-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
+  - [4.2. déployer le certificat racine](#42-déployer-le-certificat-racine)
+  - [4.3. déployer la configuration HAProxy](#43-déployer-la-configuration-haproxy)
+  - [4.4. mise à jour des paquets:](#44-mise-à-jour-des-paquets)
+  - [4.5. redémarrer le cluster](#45-redémarrer-le-cluster)
+  - [4.6. déployer un fichier](#46-déployer-un-fichier)
+  - [4.7. déployer le firewall](#47-déployer-le-firewall)
+  - [4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#48-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
 - [5. Déploiement du cluster](#5-déploiement-du-cluster)
   - [5.1. Autorité de certification](#51-autorité-de-certification)
   - [5.2. Control-Plane](#52-control-plane)
@@ -47,7 +48,8 @@
   - [5.7. Ouverture sur le monde extérieur](#57-ouverture-sur-le-monde-extérieur)
   - [5.8. Accès aux tableaux de bord](#58-accès-aux-tableaux-de-bord)
   - [5.9. Grafana](#59-grafana)
-  - [5.10. Bird sur le control-plane](#510-bird-sur-le-control-plane)
+  - [5.10. Registre local de container](#510-registre-local-de-container)
+  - [5.11. Bird sur le control-plane](#511-bird-sur-le-control-plane)
 
 ## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
@@ -72,7 +74,7 @@ Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre 
 ### 1.3.2. Choix
 | Élément    | Choix              |
 | :--------- | :----------------- |
-| Cluster    | Kubernetes v1.26.3 |
+| Cluster    | Kubernetes v1.27.0 |
 | CNI        | Cilium 1.13.1      |
 | routage    | BGP                |
 | Connexions | VXLAN              |
@@ -246,8 +248,9 @@ init_set_iptables $NODE_PUBLIC_IP
 init_set_hostname $NODE_PUBLIC_IP $NODE_PRIVATE_FQDN
 #attention ne fonctionne que si cri-dockerd existe dans le cluster pour la bonne architecture
 #voir les variables ARM_SRC et X86_64_SRC de oci-manage-config.sh
-init_install_cri_docker $NODE_PUBLIC_IP
 init_install_software $NODE_PUBLIC_IP $EXPLOITANT
+#attendre que la machine soit de retour
+init_install_cri_docker $NODE_PUBLIC_IP
 # sur les VM avec une carte réseau privée et une publique
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
 init_create_private_interface $NODE_PUBLIC_IP $PRIVATE_MAC $PRIVATE_IP
@@ -260,19 +263,24 @@ Avec oci-manage on peut alors effectuer des tâches "globales"
 ```sh
 cluster_deploy_hosts
 ```
-## 4.2. déployer la configuration HAProxy
+## 4.2. déployer le certificat racine
+celui dans la variable ROOT_CA
+```sh
+cluster_deploy_ca_cert
+```
+## 4.3. déployer la configuration HAProxy
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
-## 4.3. mise à jour des paquets:  
+## 4.4. mise à jour des paquets:  
 ```sh
 cluster_apt_dist_upgrade
 ```
-## 4.4. redémarrer le cluster
+## 4.5. redémarrer le cluster
 ```sh
 cluster_reboot
 ```
-## 4.5. déployer un fichier 
+## 4.6. déployer un fichier 
 ```sh
 #en tant que root
 cluster_copy_file_as_root /etc/hosts /etc/hosts
@@ -280,12 +288,12 @@ cluster_copy_file_as_root /etc/hosts /etc/hosts
 cluster_copy_file_as_current_user ~/oci-manage ~/oci-manage
 cluster_copy_file_as_current_user ~/oci-manage-config.sh ~/oci-manage-config.sh
 ```
-## 4.6. déployer le firewall
+## 4.7. déployer le firewall
 ```sh
 cluster_copy_file_as_root /etc/iptables/rules.v4 /etc/iptables/rules.v4
 cluster_run_on_all_members_as_root "iptables-restore -t /etc/iptables/rules.v4"
 ```
-## 4.7. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
+## 4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
 ```sh
 cluster_recreate_private_interface
 cluster_recreate_master_private_interface
@@ -504,8 +512,62 @@ Pour l'effacer
 ```sh
 kubectl 
 ```
-
-## 5.10. Bird sur le control-plane
+## 5.10. Registre local de container
+Le CI/CD c'est bien, mais en développement ça peut être long.  
+Un registre local peut-être pratique !  
+Pour installer le registre:
+1- créer une résolution de nom spécifique:
+Repérer l'adresse ip du load balancer de traefik avec `cluster_get_traefik_lb_ip`  ici 172.31.255.49
+```sh
+kubectl edit configmap coredns -n kube-system
+```
+```yaml
+apiVersion: v1
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+        hosts {
+          172.31.255.49 docker-registry.local
+          fallthrough
+        }
+    }
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2023-04-15T12:59:35Z"
+  name: coredns
+```
+```
+dev_install_local_registry
+```
+Pour ajouter une image:  
+```sh
+docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
+#et l'utiliser
+helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
+```
+Pour le désinstaller:
+```
+dev_uninstall_local_registry
+```
+## 5.11. Bird sur le control-plane
 TODO
 ```sh
 sudo apt install bird

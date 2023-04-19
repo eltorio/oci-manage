@@ -22,6 +22,7 @@ TRAEFIK_ADMIN_PASSWORD='strongpassword'
 TRAEFIK_DASHBOARD_DNS_NAMES=("traefik-dashboard.fqdn" "traefik.kube-traefik.svc.cluster.local")
 HUBBLE_DASHBOARD_DNS_NAMES=("hubble-ui.fqdn" "hubble-ui.kube-system.svc.cluster.local")
 ROOT_CA="LS0tLS1CRUdJTiBDRVJ198Z1290ZNKJNDQSQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
+DOCKER_REGISTRY_HOST=docker-registry.local
 # cat ~/pki/ca.crt | base64 | tr -d '\n'
 CA="LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 # cat ~/pki/ca.key | base64 | tr -d '\n'
@@ -53,277 +54,277 @@ SSH_ROOT_KEYS+=("ecdsa-sha2-nistp256 AAAAE2VjZHNhL6780iaBp9aV+ZzlLsF6tm3Bm0= you
 WG_DATABASE="./wg"
 ############### end of default values
 
-. ./oci-manage-config.sh
+. ~/oci-manage-config.sh
 
 K8S_CLUSTER="$CLUSTER_MEMBERS $CONTROL_PLANE_INTERNAL_ADDRESS"
 DASHBOARD_DNS_NAMES_JS=$(
-    RES=""
-    for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
-    echo "[${RES:0:-1}]"
+  RES=""
+  for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
+  echo "[${RES:0:-1}]"
 )
 TRAEFIK_DASHBOARD_DNS_NAMES_JS=$(
-    RES=""
-    for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
-    echo "[${RES:0:-1}]"
+  RES=""
+  for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
+  echo "[${RES:0:-1}]"
 )
 HUBBLE_DASHBOARD_DNS_NAMES_JS=$(
-    RES=""
-    for NAME in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
-    echo "[${RES:0:-1}]"
+  RES=""
+  for NAME in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
+  echo "[${RES:0:-1}]"
 )
 LONGHORN_DASHBOARD_DNS_NAMES_JS=$(
-    RES=""
-    for NAME in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
-    echo "[${RES:0:-1}]"
+  RES=""
+  for NAME in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
+  echo "[${RES:0:-1}]"
 )
 function create_admin_user_with_key() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage create_admin_user_with_key username password"
-    else
-        USERNAME="$1"
-        PASSWORD="$2"
-        sudo useradd -m -s /bin/bash -p "$PASSWORD" "$USERNAME"
-        sudo usermod -aG sudo "$USERNAME"
-        sudo -u "$USERNAME" sh -c "cd &&\
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage create_admin_user_with_key username password"
+  else
+    USERNAME="$1"
+    PASSWORD="$2"
+    sudo useradd -m -s /bin/bash -p "$PASSWORD" "$USERNAME"
+    sudo usermod -aG sudo "$USERNAME"
+    sudo -u "$USERNAME" sh -c "cd &&\
                                    mkdir -p .ssh &&\
                                    chmod go-rwx .ssh &&\
                                    ssh-keygen -q -t ecdsa -f ~/.ssh/id_ecdsa -N ''"
-    fi
+  fi
 }
 
 function init_new_host() {
-    if [ "$#" -ne 3 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_new_host host username password"
-    else
-        _ssh_super_secret_key
-        HOST="$1"
-        USERNAME="$2"
-        PASSWORD="$3"
-        init_create_admin_user_with_key "$HOST" "$USERNAME" "$PASSWORD"
-        init_allow_keys_for_root "$HOST" "$USERNAME" "$PASSWORD"
-        init_deploy_admin_keys_to_admin_user "$HOST" "$USERNAME"
-        init_set_ramdisk "$HOST"
-        init_set_iptables "$HOST"
-        init_install_cri_docker "$HOST"
-        init_install_software "$HOST" "$USERNAME"
-        init_install_fill_memory "$HOST"
-        echo "###################################################"
-        echo "# host pre-installed"
-        echo "# you may want to finish the network installation"
-        echo "# pehaps the good tool is"
-        echo "#     init_create_private_interface "$HOST" "MACADDRESS" "PRIVATE_IP_ADDRESS" "
-        echo "#     init_set_hostname "$HOST" "PRIVATE_HOST_NAME""
-        echo "# next add "$HOST" to the CLUSTER_MEMBERS in the config file"
-        echo "# add the host to /etc/hosts and deploy it with:"
-        echo "#      cluster_deploy_hosts"
-        echo "# you may want to recreate all private interfaces with:"
-        echo "# cluster_recreate_private_interface"
-        echo "# use cluster_init_create_member to finally add the new member to the cluster"
-    fi
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_new_host host username password"
+  else
+    _ssh_super_secret_key
+    HOST="$1"
+    USERNAME="$2"
+    PASSWORD="$3"
+    init_create_admin_user_with_key "$HOST" "$USERNAME" "$PASSWORD"
+    init_allow_keys_for_root "$HOST" "$USERNAME" "$PASSWORD"
+    init_deploy_admin_keys_to_admin_user "$HOST" "$USERNAME"
+    init_set_ramdisk "$HOST"
+    init_set_iptables "$HOST"
+    init_install_cri_docker "$HOST"
+    init_install_software "$HOST" "$USERNAME"
+    init_install_fill_memory "$HOST"
+    echo "###################################################"
+    echo "# host pre-installed"
+    echo "# you may want to finish the network installation"
+    echo "# pehaps the good tool is"
+    echo "#     init_create_private_interface "$HOST" "MACADDRESS" "PRIVATE_IP_ADDRESS" "
+    echo "#     init_set_hostname "$HOST" "PRIVATE_HOST_NAME""
+    echo "# next add "$HOST" to the CLUSTER_MEMBERS in the config file"
+    echo "# add the host to /etc/hosts and deploy it with:"
+    echo "#      cluster_deploy_hosts"
+    echo "# you may want to recreate all private interfaces with:"
+    echo "# cluster_recreate_private_interface"
+    echo "# use cluster_init_create_member to finally add the new member to the cluster"
+  fi
 }
 
 function init_set_hostname() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_set_hostname host privatehostname"
-    else
-        HOST=$1
-        PRIVATE=$2
-        ssh -4 root@$HOST "hostnamectl hostname $PRIVATE"
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_set_hostname host privatehostname"
+  else
+    HOST=$1
+    PRIVATE=$2
+    ssh -4 root@$HOST "hostnamectl hostname $PRIVATE"
+  fi
 }
 function init_allow_keys_for_root() {
-    if [ "$#" -ne 3 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_create_admin_user_with_key host username password"
-    else
-        _ssh_super_secret_key
-        HOST="$1"
-        USERNAME="$2"
-        PASSWORD="$3"
-        TEST=TEST
-        ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo sed -i.bak s/#PermitRootLogin/PermitRootLogin/ /etc/ssh/sshd_config && sudo systemctl restart ssh"
-        _CMD_="echo '' > ~/.ssh/authorized_keys"
-        for KEY in "${SSH_ROOT_KEYS[@]}"; do
-            _CMD_+=" && echo \"$KEY\" >> ~/.ssh/authorized_keys"
-        done
-        ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "$_CMD_"
-        ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo mkdir -p /root/.ssh && sudo chmod go-rwx .ssh && sudo ssh-keygen -q -t ecdsa -f /root/.ssh/id_ecdsa$TEST -N '' "
-        ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo cp /home/$SUPER_PRIVATE_USER/.ssh/authorized_keys /root/.ssh/"
-        NEW_KEY=$(ssh $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo cat /root/.ssh/id_ecdsa$TEST.pub")
-        echo "$NEW_KEY" >>~/.ssh/authorized_keys
-        sudo sh -c "echo '$NEW_KEY' >> /root/.ssh/authorized_keys"
-        echo "SSH_ROOT_KEYS+=( \"$NEW_KEY\" )" >>./oci-manage-config.sh
-        SSH_ROOT_KEYS+=("$NEW_KEY")
-        _ssh_super_secret_key_del
-    fi
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_create_admin_user_with_key host username password"
+  else
+    _ssh_super_secret_key
+    HOST="$1"
+    USERNAME="$2"
+    PASSWORD="$3"
+    TEST=TEST
+    ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo sed -i.bak s/#PermitRootLogin/PermitRootLogin/ /etc/ssh/sshd_config && sudo systemctl restart ssh"
+    _CMD_="echo '' > ~/.ssh/authorized_keys"
+    for KEY in "${SSH_ROOT_KEYS[@]}"; do
+      _CMD_+=" && echo \"$KEY\" >> ~/.ssh/authorized_keys"
+    done
+    ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "$_CMD_"
+    ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo mkdir -p /root/.ssh && sudo chmod go-rwx .ssh && sudo ssh-keygen -q -t ecdsa -f /root/.ssh/id_ecdsa$TEST -N '' "
+    ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo cp /home/$SUPER_PRIVATE_USER/.ssh/authorized_keys /root/.ssh/"
+    NEW_KEY=$(ssh $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo cat /root/.ssh/id_ecdsa$TEST.pub")
+    echo "$NEW_KEY" >>~/.ssh/authorized_keys
+    sudo sh -c "echo '$NEW_KEY' >> /root/.ssh/authorized_keys"
+    echo "SSH_ROOT_KEYS+=( \"$NEW_KEY\" )" >>./oci-manage-config.sh
+    SSH_ROOT_KEYS+=("$NEW_KEY")
+    _ssh_super_secret_key_del
+  fi
 }
 
 function init_deploy_admin_keys_to_admin_user() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_deploy_admin_keys_to_admin_user host username"
-    else
-        HOST="$1"
-        USERNAME="$2"
-        ssh -4 root@$HOST "cp /root/.ssh/authorized_keys /home/$USERNAME/.ssh/ && chown $USERNAME /home/$USERNAME/.ssh/authorized_keys"
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_deploy_admin_keys_to_admin_user host username"
+  else
+    HOST="$1"
+    USERNAME="$2"
+    ssh -4 root@$HOST "cp /root/.ssh/authorized_keys /home/$USERNAME/.ssh/ && chown $USERNAME /home/$USERNAME/.ssh/authorized_keys"
+  fi
 
 }
 
 function _ssh_super_secret_key() {
-    echo -e $SSH_SUPER_PRIVATE_KEY >~/.ssh/id_super_private
-    chmod go-rwx ~/.ssh/id_super_private
+  echo -e $SSH_SUPER_PRIVATE_KEY >~/.ssh/id_super_private
+  chmod go-rwx ~/.ssh/id_super_private
 }
 
 function _ssh_super_secret_key_del() {
-    rm ~/.ssh/id_super_private
+  rm ~/.ssh/id_super_private
 }
 
 function init_create_admin_user_with_key() {
-    if [ "$#" -ne 3 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_create_admin_user_with_key host username password"
-    else
-        HOST="$1"
-        USERNAME="$2"
-        PASSWORD="$3"
-        _ssh_super_secret_key
-        ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo useradd -m -s /bin/bash -p \"$PASSWORD\" \"$USERNAME\" && \
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_create_admin_user_with_key host username password"
+  else
+    HOST="$1"
+    USERNAME="$2"
+    PASSWORD="$3"
+    _ssh_super_secret_key
+    ssh -4 $SUPER_PRIVATE_USER@$HOST -i ~/.ssh/id_super_private "sudo useradd -m -s /bin/bash -p \"$PASSWORD\" \"$USERNAME\" && \
               sudo usermod -aG sudo \"$USERNAME\" && \
               sudo -u \"$USERNAME\" sh -c \"cd &&\
                                     mkdir -p .ssh &&\
                                     chmod go-rwx .ssh &&\
                                     ssh-keygen -q -t ecdsa -f ~/.ssh/id_ecdsa -N ''\""
-        _ssh_super_secret_key_del
-    fi
+    _ssh_super_secret_key_del
+  fi
 }
 
 function init_set_ramdisk() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_set_ramdisk host"
-    else
-        HOST="$1"
-        MEM_CMD="/usr/bin/grep MemTotal /proc/meminfo | /usr/bin/awk '{printf \"%d\",(\$2)*15/100000}'"
-        REMOTE_MEM=$(ssh -4 root@$HOST "$MEM_CMD")
-        REMOTE_MEM+="M"
-        ssh -4 root@$HOST "mkdir -p /mnt/ramdisk && echo 'tmpfs       /mnt/ramdisk tmpfs   nodev,nosuid,noexec,nodiratime,size=$REMOTE_MEM   0 0' >> /etc/fstab"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_set_ramdisk host"
+  else
+    HOST="$1"
+    MEM_CMD="/usr/bin/grep MemTotal /proc/meminfo | /usr/bin/awk '{printf \"%d\",(\$2)*15/100000}'"
+    REMOTE_MEM=$(ssh -4 root@$HOST "$MEM_CMD")
+    REMOTE_MEM+="M"
+    ssh -4 root@$HOST "mkdir -p /mnt/ramdisk && echo 'tmpfs       /mnt/ramdisk tmpfs   nodev,nosuid,noexec,nodiratime,size=$REMOTE_MEM   0 0' >> /etc/fstab"
+  fi
 }
 
 function init_install_software() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_install_software host username"
-    else
-        HOST="$1"
-        USERNAME="$2"
-        ssh -4 root@$HOST "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg"
-        ssh -4 root@$HOST 'curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/google-k8s.gpg'
-        ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list'
-        ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/google-k8s.gpg] http://apt.kubernetes.io/ kubernetes-xenial main"| tee /etc/apt/sources.list.d/k8s.list'
-        ssh -4 root@$HOST 'apt update && apt dist-upgrade -y && apt install -y iputils-ping cron vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin kubeadm kubelet kubectl kubernetes-cni haproxy jq'
-        ssh -4 root@$HOST "usermod -aG docker $USERNAME && reboot"
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_install_software host username"
+  else
+    HOST="$1"
+    USERNAME="$2"
+    ssh -4 root@$HOST "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg"
+    ssh -4 root@$HOST 'curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/google-k8s.gpg'
+    ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list'
+    ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/google-k8s.gpg] http://apt.kubernetes.io/ kubernetes-xenial main"| tee /etc/apt/sources.list.d/k8s.list'
+    ssh -4 root@$HOST 'apt update && apt dist-upgrade -y && apt install -y iputils-ping cron vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin kubeadm kubelet kubectl kubernetes-cni haproxy jq'
+    ssh -4 root@$HOST "usermod -aG docker $USERNAME && reboot"
+  fi
 }
 
 function get_host_arch() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_host_arch host"
-    else
-        HOST="$1"
-        ARCH=$(ssh -4 root@$HOST "dpkg --print-architecture")
-        echo $ARCH
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_host_arch host"
+  else
+    HOST="$1"
+    ARCH=$(ssh -4 root@$HOST "dpkg --print-architecture")
+    echo $ARCH
+  fi
 }
 function init_install_cri_docker() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_install_cri_docker host"
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_install_cri_docker host"
+  else
+    HOST="$1"
+    ARCH=$(ssh -4 root@$HOST "dpkg --print-architecture")
+    if [ "$ARCH" == "arm64" ]; then
+      SRC_HOST=$ARM_SRC
     else
-        HOST="$1"
-        ARCH=$(ssh -4 root@$HOST "dpkg --print-architecture")
-        if [ "$ARCH" == "arm64" ]; then
-            SRC_HOST=$ARM_SRC
-        else
-            SRC_HOST=$X86_64_SRC
-        fi
-        ssh root@$HOST "sed -i.bak '/^\[Service\].*/a MountFlags=shared' /lib/systemd/system/docker.service"
-        scp -4 root@$SRC_HOST:/etc/systemd/system/cri-docker.service /tmp/
-        scp -4 root@$SRC_HOST:/etc/systemd/system/cri-docker.socket /tmp/
-        scp -4 root@$SRC_HOST:/usr/local/bin/cri-dockerd /tmp/
-        scp -4 /tmp/cri-docker.service root@$HOST:/etc/systemd/system/cri-docker.service
-        scp -4 /tmp/cri-docker.socket root@$HOST:/etc/systemd/system/cri-docker.socket
-        scp -4 /tmp/cri-dockerd root@$HOST:/usr/local/bin/cri-dockerd
-        ssh -4 root@$HOST "systemctl daemon-reload && systemctl enable cri-docker.service && systemctl enable --now cri-docker.socket"
-        rm -f /tmp/cri-docker.service /tmp/cri-dockerd
+      SRC_HOST=$X86_64_SRC
     fi
+    ssh root@$HOST "sed -i.bak '/^\[Service\].*/a MountFlags=shared' /lib/systemd/system/docker.service"
+    scp -4 root@$SRC_HOST:/etc/systemd/system/cri-docker.service /tmp/
+    scp -4 root@$SRC_HOST:/etc/systemd/system/cri-docker.socket /tmp/
+    scp -4 root@$SRC_HOST:/usr/local/bin/cri-dockerd /tmp/
+    scp -4 /tmp/cri-docker.service root@$HOST:/etc/systemd/system/cri-docker.service
+    scp -4 /tmp/cri-docker.socket root@$HOST:/etc/systemd/system/cri-docker.socket
+    scp -4 /tmp/cri-dockerd root@$HOST:/usr/local/bin/cri-dockerd
+    ssh -4 root@$HOST "systemctl daemon-reload && systemctl enable cri-docker.service && systemctl enable --now cri-docker.socket"
+    rm -f /tmp/cri-docker.service /tmp/cri-dockerd
+  fi
 }
 
 function init_set_iptables() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_set_iptables host"
-    else
-        HOST="$1"
-        scp -4 /etc/iptables/rules.v4 root@$HOST:/etc/iptables/rules.v4
-        ssh -4 root@$HOST "iptables-restore -t /etc/iptables/rules.v4"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_set_iptables host"
+  else
+    HOST="$1"
+    scp -4 /etc/iptables/rules.v4 root@$HOST:/etc/iptables/rules.v4
+    ssh -4 root@$HOST "iptables-restore -t /etc/iptables/rules.v4"
+  fi
 }
 
 function init_set_iptables_members() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_set_iptables_members"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            init_set_iptables $MEMBER
-        done
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_set_iptables_members"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      init_set_iptables $MEMBER
+    done
+  fi
 }
 function init_install_fill_memory() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_install_fill_memory host"
-    else
-        HOST="$1"
-        scp -4 ./fill-memory.sh root@$HOST:/etc/cron.hourly/fill-memory.sh
-        ssh -4 root@$HOST "/etc/cron.hourly/fill-memory.sh"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_install_fill_memory host"
+  else
+    HOST="$1"
+    scp -4 ./fill-memory.sh root@$HOST:/etc/cron.hourly/fill-memory.sh
+    ssh -4 root@$HOST "/etc/cron.hourly/fill-memory.sh"
+  fi
 }
 
 function master_ssh_set_root_admin_keys() {
-    sudo sh -c 'echo '' > /root/.ssh/authorized_keys'
-    for KEY in "${SSH_ROOT_KEYS[@]}"; do
-        _CMD_="echo \"$KEY\" >> /root/.ssh/authorized_keys"
-        sudo sh -c "$_CMD_"
-    done
+  sudo sh -c 'echo '' > /root/.ssh/authorized_keys'
+  for KEY in "${SSH_ROOT_KEYS[@]}"; do
+    _CMD_="echo \"$KEY\" >> /root/.ssh/authorized_keys"
+    sudo sh -c "$_CMD_"
+  done
 }
 
 function cluster_ssh_set_admin_keys() {
-    sudo cp /root/.ssh/authorized_keys /tmp/authorized_keys
-    sudo chmod ugo+rw /tmp/authorized_keys
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        scp /tmp/authorized_keys root@$MEMBER:/root/.ssh/authorized_keys
-        ssh root@$MEMBER "chmod 0600 /root/.ssh/authorized_keys && cp /root/.ssh/authorized_keys /home/$USER/.ssh/authorized_keys && chown $USER /home/$USER/.ssh/authorized_keys"
-    done
-    sudo rm /tmp/authorized_keys
+  sudo cp /root/.ssh/authorized_keys /tmp/authorized_keys
+  sudo chmod ugo+rw /tmp/authorized_keys
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    scp /tmp/authorized_keys root@$MEMBER:/root/.ssh/authorized_keys
+    ssh root@$MEMBER "chmod 0600 /root/.ssh/authorized_keys && cp /root/.ssh/authorized_keys /home/$USER/.ssh/authorized_keys && chown $USER /home/$USER/.ssh/authorized_keys"
+  done
+  sudo rm /tmp/authorized_keys
 }
 
 function cluster_iptables_flush() {
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        ssh root@$MEMBER 'iptables -F && iptables -X'
-    done
-    sudo iptables -F && sudo iptables -X
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    ssh root@$MEMBER 'iptables -F && iptables -X'
+  done
+  sudo iptables -F && sudo iptables -X
 }
 function cluster_reset_storage() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_reset_storage"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            ssh root@$MEMBER "rm -rf /storage/*"
-        done
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_reset_storage"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      ssh root@$MEMBER "rm -rf /storage/*"
+    done
+  fi
 }
 function cluster_reset_members() {
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        ssh root@$MEMBER "systemctl stop docker; kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock && \
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    ssh root@$MEMBER "systemctl stop docker; kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock && \
         rm -rf ~/.ku* && \
         rm -rf /etc/systemd/system/kubelnet.service.d && \
         rm -rf /var/lib/kubelet/ && \
@@ -338,118 +339,118 @@ function cluster_reset_members() {
         rm -rf /home/$USER/.kube && \
         rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf && \
         reboot"
-    done
+  done
 }
 
 function cluster_reset_control_plane() {
-    sudo kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock &&
-        sudo rm -rf ~/.ku* &&
-        sudo rm -rf /etc/systemd/system/kubelnet.service.d &&
-        sudo rm -rf /var/lib/kubelet/ &&
-        sudo rm -rf /var/lib/etcd &&
-        sudo rm -rf /usr/libexec/kubernetes &&
-        sudo rm -rf /etc/kubernetes &&
-        sudo rm -rf /var/lib/weave/ &&
-        sudo rm -rf /var/lib/cni &&
-        sudo rm -rf /etc/cni &&
-        docker system prune -a -f &&
-        sudo rm -rf /root/.kube
-    sudo rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf
-    sudo systemctl restart systemd-resolved
-    sudo rm -rf $HOME/.kube &&
-        sudo reboot
+  sudo kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock &&
+    sudo rm -rf ~/.ku* &&
+    sudo rm -rf /etc/systemd/system/kubelnet.service.d &&
+    sudo rm -rf /var/lib/kubelet/ &&
+    sudo rm -rf /var/lib/etcd &&
+    sudo rm -rf /usr/libexec/kubernetes &&
+    sudo rm -rf /etc/kubernetes &&
+    sudo rm -rf /var/lib/weave/ &&
+    sudo rm -rf /var/lib/cni &&
+    sudo rm -rf /etc/cni &&
+    docker system prune -a -f &&
+    sudo rm -rf /root/.kube
+  sudo rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf
+  sudo systemctl restart systemd-resolved
+  sudo rm -rf $HOME/.kube &&
+    sudo reboot
 }
 
 function cluster_init_create_control_plane() {
-    if [ -z "${FUNCNAME[1]}" ]; then
-        echo "call cluster_init_create_control_plane"
-        IPAM="ipam.mode=cluster-pool,ipam.operator.clusterPoolIPv4PodCIDRList=$CLUSTER_POOL_CIDR"
-    else
-        echo "call cluster_init_create_control_plane_pool_kubernetes"
-        IPAM="ipam.mode=kubernetes"
-    fi
-    sudo mkdir -p /etc/kubernetes/pki/etcd
-    sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/
-    sudo chown -R root:root /etc/kubernetes
-    sudo kubeadm init \
-        --skip-phases=addon/kube-proxy \
-        --ignore-preflight-errors=NumCPU \
-        --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR \
-        --cri-socket=unix:///run/cri-dockerd.sock \
-        --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS \
-        --node-name $HOSTNAME \
-        --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1)
-    set_systemd_resolve_to_k8s
-    rm -rf $HOME/.kube
-    mkdir -p $HOME/.kube
-    sudo mkdir -p /root/.kube
-    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-    sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
-    sudo chown $(id -u):$(id -g) $HOME/.kube/config
-    cilium install --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
-    cluster_init_create_ip_pool
+  if [ -z "${FUNCNAME[1]}" ]; then
+    echo "call cluster_init_create_control_plane"
+    IPAM="ipam.mode=cluster-pool,ipam.operator.clusterPoolIPv4PodCIDRList=$CLUSTER_POOL_CIDR"
+  else
+    echo "call cluster_init_create_control_plane_pool_kubernetes"
+    IPAM="ipam.mode=kubernetes"
+  fi
+  sudo mkdir -p /etc/kubernetes/pki/etcd
+  sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/
+  sudo chown -R root:root /etc/kubernetes
+  sudo kubeadm init \
+    --skip-phases=addon/kube-proxy \
+    --ignore-preflight-errors=NumCPU \
+    --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR \
+    --cri-socket=unix:///run/cri-dockerd.sock \
+    --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS \
+    --node-name $HOSTNAME \
+    --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1)
+  set_systemd_resolve_to_k8s
+  rm -rf $HOME/.kube
+  mkdir -p $HOME/.kube
+  sudo mkdir -p /root/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  cilium install --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
+  cluster_init_create_ip_pool
 }
 
 function cluster_init_create_control_plane_pool_kubernetes() {
-    cluster_init_create_control_plane
+  cluster_init_create_control_plane
 }
 
 function cluster_init_create_post_install() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install"
-    else
-        cluster_init_install_certmanager
-        cluster_init_install_traefik
-        if [ "$STORAGE_BACKEND" == "longhorn" ]; then
-            cluster_init_install_longhorn
-            cluster_init_install_longhorn_ingress
-        fi
-        cluster_init_install_dashboard
-        cluster_init_install_traefik_ingressroute
-        sleep 30
-        kubectl delete -n kube-traefik ingressroute.traefik.containo.us/traefik-dashboard
-        cluster_init_install_traefik_ingressroute
-        cilium hubble enable --ui
-        cluster_init_cilium_hubble_ui_ingress
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install"
+  else
+    cluster_init_install_certmanager
+    cluster_init_install_traefik
+    if [ "$STORAGE_BACKEND" == "longhorn" ]; then
+      cluster_init_install_longhorn
+      cluster_init_install_longhorn_ingress
     fi
+    cluster_init_install_dashboard
+    cluster_init_install_traefik_ingressroute
+    sleep 30
+    kubectl delete -n kube-traefik ingressroute.traefik.containo.us/traefik-dashboard
+    cluster_init_install_traefik_ingressroute
+    cilium hubble enable --ui
+    cluster_init_cilium_hubble_ui_ingress
+  fi
 }
 
 function cluster_init_create_member() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_member member"
-    else
-        MEMBER=$1
-        TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
-        DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
-        echo $MEMBER
-        ssh root@$MEMBER "mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_create_member member"
+  else
+    MEMBER=$1
+    TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
+    DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
+    echo $MEMBER
+    ssh root@$MEMBER "mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
             --cri-socket=unix:///run/cri-dockerd.sock"
-        sudo scp /root/.kube/config root@$MEMBER:/root/.kube/config
-        sudo scp /etc/systemd/resolved.conf.d/k8s-resolve.conf root@$MEMBER:/etc/systemd/resolved.conf.d/k8s-resolve.conf
-        ssh root@$MEMBER "systemctl restart systemd-resolved"
-    fi
+    sudo scp /root/.kube/config root@$MEMBER:/root/.kube/config
+    sudo scp /etc/systemd/resolved.conf.d/k8s-resolve.conf root@$MEMBER:/etc/systemd/resolved.conf.d/k8s-resolve.conf
+    ssh root@$MEMBER "systemctl restart systemd-resolved"
+  fi
 }
 
 function cluster_init_create_members() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_members"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            cluster_init_create_member $MEMBER
-        done
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_create_members"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      cluster_init_create_member $MEMBER
+    done
+  fi
 }
 
 function cluster_init_install_traefik_ingressroute() {
-    HTTPASSWD=$(printf "$TRAEFIK_ADMIN:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD")\n")
-    HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | openssl base64)
-    RES=""
-    for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
-    RULES="${RES:0:-3}"
-    CN=${TRAEFIK_DASHBOARD_DNS_NAMES[0]}
-    cat <<EOF | kubectl apply -f -
+  HTTPASSWD=$(printf "$TRAEFIK_ADMIN:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD")\n")
+  HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | openssl base64)
+  RES=""
+  for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
+  RULES="${RES:0:-3}"
+  CN=${TRAEFIK_DASHBOARD_DNS_NAMES[0]}
+  cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -505,26 +506,26 @@ spec:
 EOF
 }
 function cluster_init_install_traefik() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_traefik"
-    else
-        helm repo add traefik https://traefik.github.io/charts
-        helm repo update
-        helm install --create-namespace --namespace=kube-traefik \
-            traefik traefik/traefik
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_traefik"
+  else
+    helm repo add traefik https://traefik.github.io/charts
+    helm repo update
+    helm install --create-namespace --namespace=kube-traefik \
+      traefik traefik/traefik
+  fi
 }
 
 function cluster_init_install_certmanager() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_certmanager"
-    else
-        helm repo add jetstack https://charts.jetstack.io
-        helm repo update
-        helm install --create-namespace --namespace=kube-certmanager \
-            cert-manager jetstack/cert-manager \
-            --set installCRDs=true
-        cat <<EOF | kubectl apply -f -
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_certmanager"
+  else
+    helm repo add jetstack https://charts.jetstack.io
+    helm repo update
+    helm install --create-namespace --namespace=kube-certmanager \
+      cert-manager jetstack/cert-manager \
+      --set installCRDs=true
+    cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -551,23 +552,23 @@ spec:
   ca:
     secretName: ca-key-pair
 EOF
-    fi
+  fi
 }
 
 function cluster_init_install_dashboard() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_dashboard"
-    else
-        CN=${DASHBOARD_DNS_NAMES[0]}
-        # create namespace
-        cat <<EOF | kubectl apply -f -
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_dashboard"
+  else
+    CN=${DASHBOARD_DNS_NAMES[0]}
+    # create namespace
+    cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Namespace
 metadata:
   name: kubernetes-dashboard
 EOF
-        # create Traefik transport
-        cat <<EOF | kubectl apply -f -
+    # create Traefik transport
+    cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -586,8 +587,8 @@ spec:
     - $CA_COMPANY-ca
     serverName: kubernetes-dashboard.kubernetes-dashboard.svc.cluster.local
 EOF
-        # create certificate
-        cat <<EOF | kubectl apply -f -
+    # create certificate
+    cat <<EOF | kubectl apply -f -
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -606,15 +607,15 @@ spec:
     name: $CA_COMPANY-ca-issuer
     kind: ClusterIssuer
 EOF
-    fi
-    kubectl apply -f ./dashboard/00-dashboard.yaml -f ./dashboard/01-admin-user.yaml #-f ./dashboard/02-ingress.yaml
-    cluster_init_install_dashboard_ingressroute
+  fi
+  kubectl apply -f ./dashboard/00-dashboard.yaml -f ./dashboard/01-admin-user.yaml #-f ./dashboard/02-ingress.yaml
+  cluster_init_install_dashboard_ingressroute
 }
 
 function cluster_init_install_dashboard_ingressroute() {
-    #create IngressRoute
-    RULES=$(get_traefik_host_rules)
-    cat <<EOF | kubectl apply -f -
+  #create IngressRoute
+  RULES=$(get_traefik_host_rules)
+  cat <<EOF | kubectl apply -f -
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
@@ -636,15 +637,15 @@ spec:
 EOF
 }
 function get_traefik_host_rules() {
-    RULES=$(
-        RES=""
-        for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
-        echo "${RES:0:-3}"
-    )
-    echo $RULES
+  RULES=$(
+    RES=""
+    for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
+    echo "${RES:0:-3}"
+  )
+  echo $RULES
 }
 function _get_pool_yaml() {
-    cat <<EOF >/dev/stdout
+  cat <<EOF >/dev/stdout
 apiVersion: "cilium.io/v2alpha1"
 kind: CiliumLoadBalancerIPPool
 metadata:
@@ -656,75 +657,75 @@ EOF
 }
 
 function cluster_init_create_ip_pool() {
-    _get_pool_yaml | kubectl apply -f -
+  _get_pool_yaml | kubectl apply -f -
 }
 
 function cluster_delete_ip_pool() {
-    _get_pool_yaml | kubectl delete -f -
+  _get_pool_yaml | kubectl delete -f -
 }
 function cluster_init_install_cri_docker() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_cri_docker member"
-    else
-        MEMBER=$1
-        sudo scp /etc/systemd/system/cri-docker.* root@$MEMBER:/etc/systemd/system/
-        sudo scp /usr/local/bin/cri-dockerd root@$MEMBER:/usr/local/bin/
-        ssh root@$MEMBER 'systemctl daemon-reload'
-        ssh root@$MEMBER 'systemctl enable cri-docker.service'
-        ssh root@$MEMBER 'systemctl enable --now cri-docker.socket'
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_cri_docker member"
+  else
+    MEMBER=$1
+    sudo scp /etc/systemd/system/cri-docker.* root@$MEMBER:/etc/systemd/system/
+    sudo scp /usr/local/bin/cri-dockerd root@$MEMBER:/usr/local/bin/
+    ssh root@$MEMBER 'systemctl daemon-reload'
+    ssh root@$MEMBER 'systemctl enable cri-docker.service'
+    ssh root@$MEMBER 'systemctl enable --now cri-docker.socket'
+  fi
 }
 
 function get_subnet() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_subnet host"
-    else
-        NEW_MEMBER=$1
-        echo "$(dig $NEW_MEMBER +short | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')0/24"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_subnet host"
+  else
+    NEW_MEMBER=$1
+    echo "$(dig $NEW_MEMBER +short | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')0/24"
+  fi
 }
 
 function get_subnet_from_ip() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_subnet_from_ip ip"
-    else
-        IP=$1
-        echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')0/24"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_subnet_from_ip ip"
+  else
+    IP=$1
+    echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')0/24"
+  fi
 }
 
 function get_gateway() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_gateway host"
-    else
-        NEW_MEMBER=$1
-        echo "$(dig $NEW_MEMBER +short | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')1"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_gateway host"
+  else
+    NEW_MEMBER=$1
+    echo "$(dig $NEW_MEMBER +short | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')1"
+  fi
 }
 
 function get_gateway_from_ip() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_gateway_from_ip ip"
-    else
-        IP=$1
-        echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')1"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_gateway_from_ip ip"
+  else
+    IP=$1
+    echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')1"
+  fi
 }
 
 function init_create_private_interface() {
-    if [ "$#" -ne 3 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_create_private_interface hostname macaddress privateipaddress"
-    else
-        HOST=$1
-        MAC=$2
-        IP=$3
-        GW=$(get_gateway_from_ip "$IP")
-        SUBNET=$(get_subnet_from_ip "$IP")
-        INTERFACE=$(get_remote_interface $HOST "$MAC")
-        ROUTES_JSON=$(init_get_private_routes "$IP")
-        # echo $INTERFACE $SUBNET $GW
-        # echo $ROUTES_JSON
-        cat <<EOF | yq -p json -o yaml - >/tmp/$HOST.yaml
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface hostname macaddress privateipaddress"
+  else
+    HOST=$1
+    MAC=$2
+    IP=$3
+    GW=$(get_gateway_from_ip "$IP")
+    SUBNET=$(get_subnet_from_ip "$IP")
+    INTERFACE=$(get_remote_interface $HOST "$MAC")
+    ROUTES_JSON=$(init_get_private_routes "$IP")
+    # echo $INTERFACE $SUBNET $GW
+    # echo $ROUTES_JSON
+    cat <<EOF | yq -p json -o yaml - >/tmp/$HOST.yaml
 {
   "network": {
     "version": 2,
@@ -741,62 +742,62 @@ function init_create_private_interface() {
   }
 }
 EOF
-        scp -4 /tmp/$HOST.yaml root@$HOST:/etc/netplan/$PRIVATE_INTERFACE_FILE
-        ssh -4 root@$HOST "netplan apply"
-    fi
+    scp -4 /tmp/$HOST.yaml root@$HOST:/etc/netplan/$PRIVATE_INTERFACE_FILE
+    ssh -4 root@$HOST "netplan apply"
+  fi
 }
 function get_remote_interface() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_remote_interface host macaddress"
-    else
-        HOST=$1
-        MAC=$(echo $2 | awk '{print tolower($0)}')
-        AWK_CMD="'\$3 ~ /$MAC/ {print \$1}'"
-        SSH_CMD="ip -br link | awk $AWK_CMD"
-        INTERFACE=$(ssh $USER@$HOST "ip -br link | awk $AWK_CMD")
-        echo $INTERFACE
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_remote_interface host macaddress"
+  else
+    HOST=$1
+    MAC=$(echo $2 | awk '{print tolower($0)}')
+    AWK_CMD="'\$3 ~ /$MAC/ {print \$1}'"
+    SSH_CMD="ip -br link | awk $AWK_CMD"
+    INTERFACE=$(ssh $USER@$HOST "ip -br link | awk $AWK_CMD")
+    echo $INTERFACE
+  fi
 }
 
 function get_remote_interface_from_ip() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_remote_interface_from_ip host"
-    else
-        HOST=$1
-        IP=$(dig +short $HOST)
-        AWK_CMD="'\$3 ~ /$IP/ {print \$1}'"
-        SSH_CMD="ip -br link | awk $AWK_CMD"
-        INTERFACE=$(ssh $USER@$HOST "ip -br add | awk $AWK_CMD")
-        echo $INTERFACE
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_remote_interface_from_ip host"
+  else
+    HOST=$1
+    IP=$(dig +short $HOST)
+    AWK_CMD="'\$3 ~ /$IP/ {print \$1}'"
+    SSH_CMD="ip -br link | awk $AWK_CMD"
+    INTERFACE=$(ssh $USER@$HOST "ip -br add | awk $AWK_CMD")
+    echo $INTERFACE
+  fi
 }
 
 function get_remote_interface_mac() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_remote_interface_from_ip host device"
-    else
-        HOST=$1
-        DEVICE=$2
-        AWK_CMD="'\$1 ~ /$DEVICE/ {print \$3}'"
-        SSH_CMD="ip -br link | awk $AWK_CMD"
-        INTERFACE=$(ssh $USER@$HOST "ip -br link | awk $AWK_CMD")
-        echo $INTERFACE
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_remote_interface_from_ip host device"
+  else
+    HOST=$1
+    DEVICE=$2
+    AWK_CMD="'\$1 ~ /$DEVICE/ {print \$3}'"
+    SSH_CMD="ip -br link | awk $AWK_CMD"
+    INTERFACE=$(ssh $USER@$HOST "ip -br link | awk $AWK_CMD")
+    echo $INTERFACE
+  fi
 }
 
 function cluster_recreate_master_private_interface() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_recreate_master_private_interface"
-    else
-        MEMBER=$CONTROL_PLANE_LOCAL
-        MEMBER_IP=$CONTROL_PLANE_IP
-        MEMBER_GW=$(get_gateway_from_ip $CONTROL_PLANE_IP)
-        MEMBER_INTERFACE=$(ip -br add | awk "\$3 ~ /$MEMBER_IP/ {print \$1}")
-        MEMBER_MAC=$(ip -br link | awk "\$1 ~ /$MEMBER_INTERFACE/ {print \$3}")
-        ROUTES_JSON=$(init_get_private_routes $MEMBER_IP)
-        echo "For $CONTROL_PLANE_LOCAL / $MEMBER_INTERFACE / $MEMBER_IP / $MEMBER_MAC / $MEMBER_GW "
-        ######
-        cat <<EOF | yq -p json -o yaml - >/tmp/$MEMBER.yaml
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_recreate_master_private_interface"
+  else
+    MEMBER=$CONTROL_PLANE_LOCAL
+    MEMBER_IP=$CONTROL_PLANE_IP
+    MEMBER_GW=$(get_gateway_from_ip $CONTROL_PLANE_IP)
+    MEMBER_INTERFACE=$(ip -br add | awk "\$3 ~ /$MEMBER_IP/ {print \$1}")
+    MEMBER_MAC=$(ip -br link | awk "\$1 ~ /$MEMBER_INTERFACE/ {print \$3}")
+    ROUTES_JSON=$(init_get_private_routes $MEMBER_IP)
+    echo "For $CONTROL_PLANE_LOCAL / $MEMBER_INTERFACE / $MEMBER_IP / $MEMBER_MAC / $MEMBER_GW "
+    ######
+    cat <<EOF | yq -p json -o yaml - >/tmp/$MEMBER.yaml
 {
   "network": {
     "version": 2,
@@ -813,27 +814,27 @@ function cluster_recreate_master_private_interface() {
   }
 }
 EOF
-        sudo cp /tmp/$MEMBER.yaml /etc/netplan/$PRIVATE_INTERFACE_FILE
-        sudo netplan apply
-    fi
+    sudo cp /tmp/$MEMBER.yaml /etc/netplan/$PRIVATE_INTERFACE_FILE
+    sudo netplan apply
+  fi
 }
 
 function cluster_recreate_private_interface() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_recreate_private_interface"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            HAS_PRIVATE_INTERFACE=$(ssh $USER@$MEMBER "test -f /etc/netplan/$PRIVATE_INTERFACE_FILE && echo $?")
-            if [[ "$HAS_PRIVATE_INTERFACE" == "0" ]]; then
-                if [[ "$MEMBER" != "$NEW_MEMBER" ]]; then
-                    MEMBER_IP=$(dig $MEMBER +short)
-                    MEMBER_GW=$(get_gateway $MEMBER)
-                    AWK_CMD_1="'/$MEMBER_IP/ {print \$1}'"
-                    MEMBER_INTERFACE=$(get_remote_interface_from_ip $MEMBER)
-                    MEMBER_MAC=$(get_remote_interface_mac $MEMBER $MEMBER_INTERFACE)
-                    ROUTES_JSON=$(init_get_private_routes $MEMBER_IP)
-                    echo "For $MEMBER / $MEMBER_INTERFACE / $MEMBER_IP / $MEMBER_MAC / $MEMBER_GW "
-                    cat <<EOF | yq -p json -o yaml - >/tmp/$MEMBER.yaml
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_recreate_private_interface"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      HAS_PRIVATE_INTERFACE=$(ssh $USER@$MEMBER "test -f /etc/netplan/$PRIVATE_INTERFACE_FILE && echo $?")
+      if [[ "$HAS_PRIVATE_INTERFACE" == "0" ]]; then
+        if [[ "$MEMBER" != "$NEW_MEMBER" ]]; then
+          MEMBER_IP=$(dig $MEMBER +short)
+          MEMBER_GW=$(get_gateway $MEMBER)
+          AWK_CMD_1="'/$MEMBER_IP/ {print \$1}'"
+          MEMBER_INTERFACE=$(get_remote_interface_from_ip $MEMBER)
+          MEMBER_MAC=$(get_remote_interface_mac $MEMBER $MEMBER_INTERFACE)
+          ROUTES_JSON=$(init_get_private_routes $MEMBER_IP)
+          echo "For $MEMBER / $MEMBER_INTERFACE / $MEMBER_IP / $MEMBER_MAC / $MEMBER_GW "
+          cat <<EOF | yq -p json -o yaml - >/tmp/$MEMBER.yaml
 {
   "network": {
     "version": 2,
@@ -850,404 +851,404 @@ function cluster_recreate_private_interface() {
   }
 }
 EOF
-                    scp -4 /tmp/$MEMBER.yaml root@$MEMBER:/etc/netplan/$PRIVATE_INTERFACE_FILE
-                    ssh -4 root@$MEMBER "netplan apply"
-                fi
-            fi
-        done
-        cluster_recreate_master_private_interface
-    fi
+          scp -4 /tmp/$MEMBER.yaml root@$MEMBER:/etc/netplan/$PRIVATE_INTERFACE_FILE
+          ssh -4 root@$MEMBER "netplan apply"
+        fi
+      fi
+    done
+    cluster_recreate_master_private_interface
+  fi
 }
 
 function init_get_private_routes() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage init_create_private_interface ipaddress"
-    else
-        IP=$1
-        rm -f /tmp/$IP.tmp
-        NEW_MEMBER_SUBNET="$(get_subnet_from_ip $IP)"
-        for DEST_MEMBER in $K8S_CLUSTER; do
-            DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
-            if [[ "$DEST_MEMBER" != "$IP" ]]; then
-                if [[ "$NEW_MEMBER_SUBNET" != "$DEST_MEMBER_SUBNET" ]]; then
-                    MEMBER_GW="$(get_gateway_from_ip $IP)"
-                    echo "{\"to\":\"$DEST_MEMBER_SUBNET\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$IP.tmp
-                fi
-            fi
-            for ADDITIONAL_ROUTE in ${ADDITIONAL_ROUTES[@]}; do
-                echo "{\"to\":\"$ADDITIONAL_ROUTE\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$IP.tmp
-            done
-        done
-        awk -i inplace '!seen[$0]++' /tmp/$IP.tmp
-        ROUTES=""
-        while IFS= read -r line; do
-            ROUTES+="$line,"
-        done <"/tmp/$IP.tmp"
-        rm -f /tmp/$IP.tmp
-        ROUTES=${ROUTES::-1}
-        echo "[$ROUTES]"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface ipaddress"
+  else
+    IP=$1
+    rm -f /tmp/$IP.tmp
+    NEW_MEMBER_SUBNET="$(get_subnet_from_ip $IP)"
+    for DEST_MEMBER in $K8S_CLUSTER; do
+      DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
+      if [[ "$DEST_MEMBER" != "$IP" ]]; then
+        if [[ "$NEW_MEMBER_SUBNET" != "$DEST_MEMBER_SUBNET" ]]; then
+          MEMBER_GW="$(get_gateway_from_ip $IP)"
+          echo "{\"to\":\"$DEST_MEMBER_SUBNET\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$IP.tmp
+        fi
+      fi
+      for ADDITIONAL_ROUTE in ${ADDITIONAL_ROUTES[@]}; do
+        echo "{\"to\":\"$ADDITIONAL_ROUTE\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$IP.tmp
+      done
+    done
+    awk -i inplace '!seen[$0]++' /tmp/$IP.tmp
+    ROUTES=""
+    while IFS= read -r line; do
+      ROUTES+="$line,"
+    done <"/tmp/$IP.tmp"
+    rm -f /tmp/$IP.tmp
+    ROUTES=${ROUTES::-1}
+    echo "[$ROUTES]"
+  fi
 }
 function v0_cluster_add_route_for_new_member() {
-    echo "BUUUUGGGGGGED"
-    exit 1
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_add_route_for_new_member member"
-    else
-        NEW_MEMBER=$1
-        NEW_MEMBER_IP=$(dig $NEW_MEMBER +short)
-        NEW_MEMBER_SUBNET="$(get_subnet $NEW_MEMBER)"
-        echo "NEW_MEMBER=$NEW_MEMBER"
-        echo "NEW_MEMBER_IP=$NEW_MEMBER_IP"
-        echo "NEW_MEMBER_SUBNET=$NEW_MEMBER_SUBNET"
-        for MEMBER in $CLUSTER_MEMBERS; do
-            if [[ "$MEMBER" != "$NEW_MEMBER" ]]; then
-                MEMBER_IP=$(dig $MEMBER +short)
-                MEMBER_GW=$(get_gateway $MEMBER)
-                echo "For $MEMBER"
-                echo "netplan set ethernets.enp1s0.routes='[{"to":"$NEW_MEMBER_SUBNET", "via": "$MEMBER_GW"}]'"
-            fi
-        done
-    fi
+  echo "BUUUUGGGGGGED"
+  exit 1
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_add_route_for_new_member member"
+  else
+    NEW_MEMBER=$1
+    NEW_MEMBER_IP=$(dig $NEW_MEMBER +short)
+    NEW_MEMBER_SUBNET="$(get_subnet $NEW_MEMBER)"
+    echo "NEW_MEMBER=$NEW_MEMBER"
+    echo "NEW_MEMBER_IP=$NEW_MEMBER_IP"
+    echo "NEW_MEMBER_SUBNET=$NEW_MEMBER_SUBNET"
+    for MEMBER in $CLUSTER_MEMBERS; do
+      if [[ "$MEMBER" != "$NEW_MEMBER" ]]; then
+        MEMBER_IP=$(dig $MEMBER +short)
+        MEMBER_GW=$(get_gateway $MEMBER)
+        echo "For $MEMBER"
+        echo "netplan set ethernets.enp1s0.routes='[{"to":"$NEW_MEMBER_SUBNET", "via": "$MEMBER_GW"}]'"
+      fi
+    done
+  fi
 }
 
 function cluster_create_private_cross_routes() {
-    echo "BUUUUGGGGGGED"
-    exit 1
-    for MEMBER in $CLUSTER_MEMBERS; do
-        rm -f /tmp/$MEMBER.tmp
-        echo "For $MEMBER"
-        MEMBER_SUBNET="$(get_subnet $MEMBER)"
-        for DEST_MEMBER in $CLUSTER_MEMBERS; do
-            DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
-            if [[ "$DEST_MEMBER" != "$MEMBER" ]]; then
-                if [[ "$MEMBER_SUBNET" != "$DEST_MEMBER_SUBNET" ]]; then
-                    MEMBER_GW="$(get_gateway $MEMBER)"
-                    echo "{\"to\":\"$DEST_MEMBER_SUBNET\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$MEMBER.tmp
-                fi
-            fi
-        done
-        awk -i inplace '!seen[$0]++' /tmp/$MEMBER.tmp
-        ROUTES=""
-        while IFS= read -r line; do
-            ROUTES+="$line,"
-        done <"/tmp/$MEMBER.tmp"
-        rm -f /tmp/$MEMBER.tmp
-        ROUTES=${ROUTES::-1}
-        COMMAND="netplan set ethernets.enp1s0.routes='[$ROUTES]'"
-        echo $ROUTES
-        #ssh root@$MEMBER "netplan set ethernets.enp1s0.routes='[]' ; $COMMAND"
+  echo "BUUUUGGGGGGED"
+  exit 1
+  for MEMBER in $CLUSTER_MEMBERS; do
+    rm -f /tmp/$MEMBER.tmp
+    echo "For $MEMBER"
+    MEMBER_SUBNET="$(get_subnet $MEMBER)"
+    for DEST_MEMBER in $CLUSTER_MEMBERS; do
+      DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
+      if [[ "$DEST_MEMBER" != "$MEMBER" ]]; then
+        if [[ "$MEMBER_SUBNET" != "$DEST_MEMBER_SUBNET" ]]; then
+          MEMBER_GW="$(get_gateway $MEMBER)"
+          echo "{\"to\":\"$DEST_MEMBER_SUBNET\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$MEMBER.tmp
+        fi
+      fi
     done
+    awk -i inplace '!seen[$0]++' /tmp/$MEMBER.tmp
+    ROUTES=""
+    while IFS= read -r line; do
+      ROUTES+="$line,"
+    done <"/tmp/$MEMBER.tmp"
+    rm -f /tmp/$MEMBER.tmp
+    ROUTES=${ROUTES::-1}
+    COMMAND="netplan set ethernets.enp1s0.routes='[$ROUTES]'"
+    echo $ROUTES
+    #ssh root@$MEMBER "netplan set ethernets.enp1s0.routes='[]' ; $COMMAND"
+  done
 }
 
 function cluster_cilium_full_status() {
-    CILIUM_PODS=$(kubectl get pods -A | grep cilium | awk '{print $2}' | xargs echo)
-    for POD in $CILIUM_PODS; do
-        IS_CILIUM_OPERATOR=$(echo "$POD" | grep operator)
-        if [[ $? -eq 1 ]]; then
-            echo "##################"
-            echo "##     $POD"
-            echo "##################"
-            kubectl -n kube-system exec $POD -- cilium status
-        fi
-    done
+  CILIUM_PODS=$(kubectl get pods -A | grep cilium | awk '{print $2}' | xargs echo)
+  for POD in $CILIUM_PODS; do
+    IS_CILIUM_OPERATOR=$(echo "$POD" | grep operator)
+    if [[ $? -eq 1 ]]; then
+      echo "##################"
+      echo "##     $POD"
+      echo "##################"
+      kubectl -n kube-system exec $POD -- cilium status
+    fi
+  done
 }
 
 function cluster_cilium_hostip_all() {
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        ssh $USER@$MEMBER "ip add | grep -A3 cilium | grep 'inet '"
-    done
-    echo "Control plane"
-    ip add | grep -A3 cilium | grep 'inet '
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    ssh $USER@$MEMBER "ip add | grep -A3 cilium | grep 'inet '"
+  done
+  echo "Control plane"
+  ip add | grep -A3 cilium | grep 'inet '
 }
 
 function cluster_test_udp_port() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_test_udp_port port"
-    else
-        PORT=$1
-        echo $PORT
-        netcat -4 -k -l -u $PORT &
-        PID=$!
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_test_udp_port port"
+  else
+    PORT=$1
+    echo $PORT
+    netcat -4 -k -l -u $PORT &
+    PID=$!
 
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            COMMAND='echo "hello from `hostname`" | '
-            COMMAND+="netcat -4 -q 1 $CONTROL_PLANE_INTERNAL_ADDRESS -u $PORT"
-            ssh $USER@$MEMBER "$COMMAND"
-        done
-        kill -9 $PID
-    fi
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      COMMAND='echo "hello from `hostname`" | '
+      COMMAND+="netcat -4 -q 1 $CONTROL_PLANE_INTERNAL_ADDRESS -u $PORT"
+      ssh $USER@$MEMBER "$COMMAND"
+    done
+    kill -9 $PID
+  fi
 }
 function cluster_test_tcp_port() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_test_tcp_port port"
-    else
-        PORT=$1
-        echo $PORT
-        netcat -4 -k -l $PORT &
-        PID=$!
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_test_tcp_port port"
+  else
+    PORT=$1
+    echo $PORT
+    netcat -4 -k -l $PORT &
+    PID=$!
 
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            COMMAND='echo "hello from `hostname`" | '
-            COMMAND+="netcat -4 -q 1 $CONTROL_PLANE_INTERNAL_ADDRESS $PORT"
-            ssh $USER@$MEMBER "$COMMAND"
-        done
-        kill -9 $PID
-    fi
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      COMMAND='echo "hello from `hostname`" | '
+      COMMAND+="netcat -4 -q 1 $CONTROL_PLANE_INTERNAL_ADDRESS $PORT"
+      ssh $USER@$MEMBER "$COMMAND"
+    done
+    kill -9 $PID
+  fi
 }
 
 function cluster_cilium_hostip_all_as_for() {
-    cluster_cilium_hostip_all | grep inet | awk -v RS='([0-9]+\\.){3}[0-9]+' 'RT{print RT}' | xargs echo
+  cluster_cilium_hostip_all | grep inet | awk -v RS='([0-9]+\\.){3}[0-9]+' 'RT{print RT}' | xargs echo
 }
 
 function cluster_cilium_hostip_cross_ping() {
-    CILIUM_HOSTS=$(cluster_cilium_hostip_all_as_for)
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        COMMAND="CILIUM_HOSTS='$CILIUM_HOSTS' ; "
-        COMMAND+='for IP in $CILIUM_HOSTS;'
-        COMMAND+='do ping -c1 -W1 $IP;done '
-        ssh $USER@$MEMBER "$COMMAND"
-    done
+  CILIUM_HOSTS=$(cluster_cilium_hostip_all_as_for)
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    COMMAND="CILIUM_HOSTS='$CILIUM_HOSTS' ; "
+    COMMAND+='for IP in $CILIUM_HOSTS;'
+    COMMAND+='do ping -c1 -W1 $IP;done '
+    ssh $USER@$MEMBER "$COMMAND"
+  done
 }
 function cluster_reboot() {
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        ssh root@$MEMBER 'reboot'
-    done
-    sudo reboot
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    ssh root@$MEMBER 'reboot'
+  done
+  sudo reboot
 }
 
 function cluster_apt_dist_upgrade() {
-    for MEMBER in $CLUSTER_MEMBERS; do
-        echo $MEMBER
-        ssh root@$MEMBER 'apt update -y && apt dist-upgrade -y && apt upgrade -y && apt autoremove -y'
-    done
-    sudo apt update -y && sudo apt dist-upgrade -y && sudo apt upgrade -y && sudo apt autoremove -y
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    ssh root@$MEMBER 'apt update -y && apt dist-upgrade -y && apt upgrade -y && apt autoremove -y'
+  done
+  sudo apt update -y && sudo apt dist-upgrade -y && sudo apt upgrade -y && sudo apt autoremove -y
 }
 
 function cluster_apt_install() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_apt_install"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            ssh root@$MEMBER "apt install -y $1"
-        done
-    fi
-    sudo apt install -y $1
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_apt_install"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      ssh root@$MEMBER "apt install -y $1"
+    done
+  fi
+  sudo apt install -y $1
 }
 
 function cluster_run_on_all_members_as_root() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_root command"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            ssh root@$MEMBER $1
-        done
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_root command"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      ssh root@$MEMBER $1
+    done
+  fi
 }
 
 function cluster_run_on_all_members_as_current_user() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_current_user command"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            ssh $USER@$MEMBER $1
-        done
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_current_user command"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      ssh $USER@$MEMBER $1
+    done
+  fi
 }
 
 function cluster_copy_file_as_current_user() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_copy_file_as_current_user local_file remote_file"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            scp $1 $USER@$MEMBER:$2
-        done
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_copy_file_as_current_user local_file remote_file"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      scp $1 $USER@$MEMBER:$2
+    done
+  fi
 }
 
 function cluster_deploy_hosts() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_deploy_hosts"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            sed -e '/^127\..*/d' -e '/^[[:space:]]*$/d' /etc/hosts >/tmp/$MEMBER
-            echo "127.0.1.1    $MEMBER     $MEMBER" >>/tmp/$MEMBER
-            scp /tmp/$MEMBER root@$MEMBER:/etc/hosts
-            rm /tmp/$MEMBER
-        done
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_deploy_hosts"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      sed -e '/^127\..*/d' -e '/^[[:space:]]*$/d' /etc/hosts >/tmp/$MEMBER
+      echo "127.0.1.1    $MEMBER     $MEMBER" >>/tmp/$MEMBER
+      scp /tmp/$MEMBER root@$MEMBER:/etc/hosts
+      rm /tmp/$MEMBER
+    done
+  fi
 }
 
 function cluster_copy_file_and_run_as_root() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_copy_file_as_root local_file remote_file"
-    else
-        LOCAL_FILE=$1
-        REMOTE_FILE=$2
-        cluster_copy_file_as_root $LOCAL_FILE $REMOTE_FILE
-        cluster_run_on_all_members_as_root $REMOTE_FILE
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_copy_file_as_root local_file remote_file"
+  else
+    LOCAL_FILE=$1
+    REMOTE_FILE=$2
+    cluster_copy_file_as_root $LOCAL_FILE $REMOTE_FILE
+    cluster_run_on_all_members_as_root $REMOTE_FILE
+  fi
 }
 
 function cluster_copy_file_as_root() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_copy_file_as_root local_file remote_file"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo $MEMBER
-            scp $1 root@$MEMBER:$2
-        done
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_copy_file_as_root local_file remote_file"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      scp $1 root@$MEMBER:$2
+    done
+  fi
 }
 
 function dashboard_get_token() {
-    kubectl -n kubernetes-dashboard create token admin-user
+  kubectl -n kubernetes-dashboard create token admin-user
 }
 
 function wg_meshconf_init() {
-    PWD=$(pwd)
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage wg_meshconf_init"
-    else
-        if [ ! -f ~/wg/database.csv ]; then
-            echo "init wg meshconf!"
-            mkdir -p ~/wg
-            docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf init
-        fi
+  PWD=$(pwd)
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage wg_meshconf_init"
+  else
+    if [ ! -f ~/wg/database.csv ]; then
+      echo "init wg meshconf!"
+      mkdir -p ~/wg
+      docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf init
     fi
-    cd $PWD
+  fi
+  cd $PWD
 }
 
 function wg_meshconf_showpeers() {
-    PWD=$(pwd)
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage wg_meshconf_showeers"
-    else
-        cd ~
-        wg_meshconf_init
-        docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf showpeers
-    fi
-    cd $PWD
+  PWD=$(pwd)
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage wg_meshconf_showeers"
+  else
+    cd ~
+    wg_meshconf_init
+    docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf showpeers
+  fi
+  cd $PWD
 }
 
 function wg_meshconf_get_all_peers_sorted() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage wg_meshconf_get_all_peers_sorted"
-    else
-        cat wg/database.csv | awk -F "," '{ print $2}' | tail -n +2 | sed -e 's/^"//' -e 's/"$//' | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -t . -k 3,3n -k 4,4n
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage wg_meshconf_get_all_peers_sorted"
+  else
+    cat wg/database.csv | awk -F "," '{ print $2}' | tail -n +2 | sed -e 's/^"//' -e 's/"$//' | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -t . -k 3,3n -k 4,4n
+  fi
 }
 function wg_meshconf_get_all_peers_sorted_except_gw() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage wg_meshconf_get_all_pewg_meshconf_get_all_peers_sorted_except_gwers_sorted"
-    else
-        wg_meshconf_get_all_peers_sorted | sort -t . -k 3,3n -k 4,4n | tail -n 2 | head -n 1
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage wg_meshconf_get_all_pewg_meshconf_get_all_peers_sorted_except_gwers_sorted"
+  else
+    wg_meshconf_get_all_peers_sorted | sort -t . -k 3,3n -k 4,4n | tail -n 2 | head -n 1
+  fi
 }
 function wg_meshconf_addpeer() {
-    PWD=$(pwd)
-    if [ "$#" -ne 3 ]; then
-        echo "Illegal number of parameters:" && echo "    usage wg_meshconf_addpeer peername peer_fqdn peer_udp_port"
-    else
-        PEER_NAME=$1
-        PEER_FQDN=$2
-        PEER_UDP_PORT=$3
-        cd ~
-        wg_meshconf_init
-        ALL_PEERS_SORTED=$(wg_meshconf_get_all_peers_sorted)
-        GREATEST_PEER_EXCEPT_GW=$(wg_meshconf_get_all_peers_sorted_except_gw)
-        NEW_PEER=$(echo $GREATEST_PEER_EXCEPT_GW | awk -F "." '{printf "%d.%d.%d.%d",$1,$2,$3,($4+1)}')
-        echo "Adding $NEW_PEER/32"
-        docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT
-    fi
-    cd $PWD
+  PWD=$(pwd)
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage wg_meshconf_addpeer peername peer_fqdn peer_udp_port"
+  else
+    PEER_NAME=$1
+    PEER_FQDN=$2
+    PEER_UDP_PORT=$3
+    cd ~
+    wg_meshconf_init
+    ALL_PEERS_SORTED=$(wg_meshconf_get_all_peers_sorted)
+    GREATEST_PEER_EXCEPT_GW=$(wg_meshconf_get_all_peers_sorted_except_gw)
+    NEW_PEER=$(echo $GREATEST_PEER_EXCEPT_GW | awk -F "." '{printf "%d.%d.%d.%d",$1,$2,$3,($4+1)}')
+    echo "Adding $NEW_PEER/32"
+    docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT
+  fi
+  cd $PWD
 }
 
 function wg_meshconf_deploy_config() {
-    PWD=$(pwd)
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage wg_meshconf_deploy_config"
-    else
-        cd ~
-        wg_meshconf_init
-        docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
-        for MEMBER in $CLUSTER_MEMBERS; do
-            if [ -f "wg/output/$MEMBER.conf" ]; then
-                echo $MEMBER
-                scp wg/output/$MEMBER.conf root@$MEMBER:/etc/wireguard/wg0.conf
-                ssh root@$MEMBER "systemctl enable wg-quick@wg0 ; systemctl restart wg-quick@wg0"
-            fi
-        done
-        sudo cp wg/output/$CONTROL_PLANE_LOCAL.conf /etc/wireguard/wg0.conf
-        sudo systemctl enable wg-quick@wg0
-        sudo systemctl restart wg-quick@wg0
-        #### private
-        if [[ $(type -t private_wg_deploy) == function ]]; then
-            private_wg_deploy
-        fi
+  PWD=$(pwd)
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage wg_meshconf_deploy_config"
+  else
+    cd ~
+    wg_meshconf_init
+    docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
+    for MEMBER in $CLUSTER_MEMBERS; do
+      if [ -f "wg/output/$MEMBER.conf" ]; then
+        echo $MEMBER
+        scp wg/output/$MEMBER.conf root@$MEMBER:/etc/wireguard/wg0.conf
+        ssh root@$MEMBER "systemctl enable wg-quick@wg0 ; systemctl restart wg-quick@wg0"
+      fi
+    done
+    sudo cp wg/output/$CONTROL_PLANE_LOCAL.conf /etc/wireguard/wg0.conf
+    sudo systemctl enable wg-quick@wg0
+    sudo systemctl restart wg-quick@wg0
+    #### private
+    if [[ $(type -t private_wg_deploy) == function ]]; then
+      private_wg_deploy
     fi
-    cd $PWD
+  fi
+  cd $PWD
 }
 
 function oci_get_data() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_get_data key (exemple mytenancy.vcn.privaye.cidr)"
-    else
-        COMKEY=$1
-        KEY=$(echo "$COMKEY" | cut -d. -f2-)
-        TENANCY=$(echo "$COMKEY" | cut -d. -f1)
-        _CMD_="'.[] | select(.tenancy == \"$TENANCY\")'.$KEY"
-        sh -c "yq $_CMD_ < $OCI_DB"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_get_data key (exemple mytenancy.vcn.privaye.cidr)"
+  else
+    COMKEY=$1
+    KEY=$(echo "$COMKEY" | cut -d. -f2-)
+    TENANCY=$(echo "$COMKEY" | cut -d. -f1)
+    _CMD_="'.[] | select(.tenancy == \"$TENANCY\")'.$KEY"
+    sh -c "yq $_CMD_ < $OCI_DB"
+  fi
 }
 
 function cluster_ping_host_from_members() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_ping_host_from_members host"
-    else
-        HOST=$1
-        for MEMBER in $CLUSTER_MEMBERS; do
-            echo "From $MEMBER to $HOST"
-            ssh $USER@$MEMBER "ping -c1 $HOST"
-        done
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_ping_host_from_members host"
+  else
+    HOST=$1
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo "From $MEMBER to $HOST"
+      ssh $USER@$MEMBER "ping -c1 $HOST"
+    done
+  fi
 }
 
 function cluster_get_traefik_lb_ip() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_get_traefik_lb_ip"
-    else
-        #LB_IP=$(kubectl get services -A | awk '$2=="traefik" && $3=="LoadBalancer" {print $5}')
-        LB_IP=$(kubectl get services \
-            --namespace kube-traefik \
-            traefik \
-            --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
-        echo $LB_IP
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_get_traefik_lb_ip"
+  else
+    #LB_IP=$(kubectl get services -A | awk '$2=="traefik" && $3=="LoadBalancer" {print $5}')
+    LB_IP=$(kubectl get services \
+      --namespace kube-traefik \
+      traefik \
+      --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    echo $LB_IP
+  fi
 }
 
 function cluster_traefik_launch_simple_proxy() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_get_traefik_lb_ip"
-    else
-        sudo simpleproxy -v -L $CONTROL_PLANE_IP:443 -R $(cluster_get_traefik_lb_ip):443
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_get_traefik_lb_ip"
+  else
+    sudo simpleproxy -v -L $CONTROL_PLANE_IP:443 -R $(cluster_get_traefik_lb_ip):443
+  fi
 }
 
 function cluster_init_cilium_hubble_ui_ingress() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_cilium_hubble_ui_ingress"
-    else
-        cat <<EOF >/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_cilium_hubble_ui_ingress"
+  else
+    cat <<EOF >/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1255,14 +1256,14 @@ metadata:
   namespace: kube-system
   annotations:
     kubernetes.io/ingress.class: traefik
-    cert-manager.io/cluster-issuer: lesmuids-ca-issuer
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
   rules:
 EOF
-        for HOST in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do
-            cat <<EOF >>/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+    for HOST in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do
+      cat <<EOF >>/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
     - host: $HOST
       http:
         paths:
@@ -1274,57 +1275,57 @@ EOF
                 port:
                   name: http
 EOF
-        done
-        cat <<EOF >>/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+    done
+    cat <<EOF >>/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
   tls:
   - hosts: $HUBBLE_DASHBOARD_DNS_NAMES_JS
     secretName: hubble-cert
 ---
 EOF
-        kubectl apply -f /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
-        rm /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
-    fi
+    kubectl apply -f /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+    rm /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+  fi
 }
 
 function get_subnet_from_cidr() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_subnet_from_cidr cidr"
-    else
-        IP=$1
-        echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\).*$/\1\2\3/')"
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_subnet_from_cidr cidr"
+  else
+    IP=$1
+    echo "$(echo "$IP" | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\).*$/\1\2\3/')"
+  fi
 }
 
 function get_kube_dns_ip() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage get_kube_dns_ip"
-    else
-        KUBE_DNS=$(get_subnet_from_cidr $SERVICE_CIDR)10
-        echo $KUBE_DNS
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_kube_dns_ip"
+  else
+    KUBE_DNS=$(get_subnet_from_cidr $SERVICE_CIDR)10
+    echo $KUBE_DNS
+  fi
 }
 
 function set_systemd_resolve_to_k8s() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage set_systemd_resolve_to_k8s"
-    else
-        sudo mkdir -p /etc/systemd/resolved.conf.d
-        sudo bash -c "cat >/etc/systemd/resolved.conf.d/k8s-resolve.conf" <<EOF
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage set_systemd_resolve_to_k8s"
+  else
+    sudo mkdir -p /etc/systemd/resolved.conf.d
+    sudo bash -c "cat >/etc/systemd/resolved.conf.d/k8s-resolve.conf" <<EOF
 [Resolve]
 Cache=yes
 DNS=$(
-            get_kube_dns_ip
-        )
+      get_kube_dns_ip
+    )
 Domains=default.svc.cluster.local svc.cluster.local cluster.local
 EOF
-    fi
+  fi
 }
 
 function cluster_init_create_master_haproxy_cfg() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_master_haproxy_cfg"
-    else
-        sudo bash -c "cat >/etc/haproxy/haproxy.cfg" <<EOF
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_create_master_haproxy_cfg"
+  else
+    sudo bash -c "cat >/etc/haproxy/haproxy.cfg" <<EOF
 global
         log /dev/log    local0
         log /dev/log    local1 notice
@@ -1348,24 +1349,24 @@ frontend traefik
 backend k8s-traefik
         server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
 EOF
-        sudo systemctl restart haproxy
-    fi
+    sudo systemctl restart haproxy
+  fi
 }
 
 function cluster_deploy_haproxy_config_on_members() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_deploy_haproxy_config_on_members"
-    else
-        cluster_copy_file_as_root /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg
-        cluster_run_on_all_members_as_root "systemctl restart haproxy"
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_deploy_haproxy_config_on_members"
+  else
+    cluster_copy_file_as_root /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg
+    cluster_run_on_all_members_as_root "systemctl restart haproxy"
+  fi
 }
 
 function cluster_init_install_longhorn_ingress() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn_ingress"
-    else
-        cat <<EOF >/tmp/cluster_init_install_longhorn_ingress.yaml
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn_ingress"
+  else
+    cat <<EOF >/tmp/cluster_init_install_longhorn_ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1373,14 +1374,14 @@ metadata:
   namespace: longhorn-system
   annotations:
     kubernetes.io/ingress.class: traefik
-    cert-manager.io/cluster-issuer: lesmuids-ca-issuer
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
   rules:
 EOF
-        for HOST in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do
-            cat <<EOF >>/tmp/cluster_init_install_longhorn_ingress.yaml
+    for HOST in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do
+      cat <<EOF >>/tmp/cluster_init_install_longhorn_ingress.yaml
     - host: $HOST
       http:
         paths:
@@ -1392,44 +1393,44 @@ EOF
                 port:
                   name: http
 EOF
-        done
-        cat <<EOF >>/tmp/cluster_init_install_longhorn_ingress.yaml
+    done
+    cat <<EOF >>/tmp/cluster_init_install_longhorn_ingress.yaml
   tls:
   - hosts: $LONGHORN_DASHBOARD_DNS_NAMES_JS
     secretName: longhorn-cert
 ---
 EOF
-        kubectl apply -f /tmp/cluster_init_install_longhorn_ingress.yaml
-        rm /tmp/cluster_init_install_longhorn_ingress.yaml
-    fi
+    kubectl apply -f /tmp/cluster_init_install_longhorn_ingress.yaml
+    rm /tmp/cluster_init_install_longhorn_ingress.yaml
+  fi
 }
 function cluster_init_install_longhorn() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
-    else
-        helm repo add longhorn https://charts.longhorn.io
-        helm repo update
-        helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version $LONGHORN_VERSION
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
+  else
+    helm repo add longhorn https://charts.longhorn.io
+    helm repo update
+    helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version $LONGHORN_VERSION
+  fi
 }
 
 function cluster_init_install_openebs() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
-    else
-        helm repo add openebs https://openebs.github.io/charts
-        helm repo update
-        helm install openebs openebs/openebs --namespace kube-openebs --create-namespace \
-            --set legacy.enabled=false \
-            --set jiva.enabled=true \
-            --set jiva.replicas=$JIVA_REPLICAS \
-            --set jiva.defaultStoragePath=$STORAGE_LOCATION \
-            --set openebs-ndm.enabled=true \
-            --set localpv-provisioner.enabled=true \
-            --set nfs-provisioner.enabled=true
-        kubectl patch storageclass openebs-jiva-csi-default \
-            -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-        cat <<EOF | kubectl apply -f -
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
+  else
+    helm repo add openebs https://openebs.github.io/charts
+    helm repo update
+    helm install openebs openebs/openebs --namespace kube-openebs --create-namespace \
+      --set legacy.enabled=false \
+      --set jiva.enabled=true \
+      --set jiva.replicas=$JIVA_REPLICAS \
+      --set jiva.defaultStoragePath=$STORAGE_LOCATION \
+      --set openebs-ndm.enabled=true \
+      --set localpv-provisioner.enabled=true \
+      --set nfs-provisioner.enabled=true
+    kubectl patch storageclass openebs-jiva-csi-default \
+      -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+    cat <<EOF | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -1444,35 +1445,35 @@ metadata:
 provisioner: openebs.io/nfsrwx
 reclaimPolicy: Delete
 EOF
-    fi
+  fi
 }
 function build_lookbusy() {
-    gcc miscellaneous/lb.c -lm -o miscellaneous/lb
+  gcc miscellaneous/lb.c -lm -o miscellaneous/lb
 }
 
 function cluster_deploy_lookbusy() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
-    else
-        for MEMBER in $CLUSTER_MEMBERS; do
-            ARCH=$(get_host_arch $MEMBER)
-            if [ "$ARCH" == "arm64" ]; then
-                scp root@$ARM_SRC:/usr/local/bin/lb root@$MEMBER:/usr/local/bin/lb
-            else
-                scp root@$X86_64_SRC:/usr/local/bin/lb root@$MEMBER:/usr/local/bin/lb
-            fi
-            scp miscellaneous/lb.service root@$MEMBER:/lib/systemd/system/lb.service
-            ssh root@$MEMBER "systemctl enable lb.service --now"
-        done
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      ARCH=$(get_host_arch $MEMBER)
+      if [ "$ARCH" == "arm64" ]; then
+        scp root@$ARM_SRC:/usr/local/bin/lb root@$MEMBER:/usr/local/bin/lb
+      else
+        scp root@$X86_64_SRC:/usr/local/bin/lb root@$MEMBER:/usr/local/bin/lb
+      fi
+      scp miscellaneous/lb.service root@$MEMBER:/lib/systemd/system/lb.service
+      ssh root@$MEMBER "systemctl enable lb.service --now"
+    done
+  fi
 }
 
 function cluster_init_create_post_install_grafana_v2() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install_grafana"
-    else
-        NAMESPACE=grafana
-        cat <<EOF | kubectl apply -n $NAMESPACE -f -
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install_grafana"
+  else
+    NAMESPACE=grafana
+    cat <<EOF | kubectl apply -n $NAMESPACE -f -
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -1604,14 +1605,14 @@ data:
           sync_period: 10s
     
 EOF
-        MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-bare.yaml
-        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo update
-        helm install -n $NAMESPACE --create-namespace ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2
-        helm install -n $NAMESPACE --create-namespace nodeexporter prometheus-community/prometheus-node-exporter
-        cat <<EOF | kubectl apply -n $NAMESPACE -f -
+    MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-bare.yaml
+    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo update
+    helm install -n $NAMESPACE --create-namespace ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2
+    helm install -n $NAMESPACE --create-namespace nodeexporter prometheus-community/prometheus-node-exporter
+    cat <<EOF | kubectl apply -n $NAMESPACE -f -
 kind: ConfigMap
 metadata:
   name: grafana-agent-logs
@@ -1797,16 +1798,16 @@ spec:
         
     
 EOF
-        # MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
-        # /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
-    fi
+    # MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
+    # /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
+  fi
 }
 function cluster_init_create_post_install_grafana() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install_grafana"
-    else
-        NAMESPACE=grafana
-        cat <<EOF | kubectl apply -n $NAMESPACE -f -
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install_grafana"
+  else
+    NAMESPACE=grafana
+    cat <<EOF | kubectl apply -n $NAMESPACE -f -
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -1937,14 +1938,14 @@ data:
           sync_period: 10s
     
 EOF
-        MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-bare.yaml
-        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo update
-        helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2 -n $NAMESPACE
-        helm install nodeexporter prometheus-community/prometheus-node-exporter -n $NAMESPACE
-        cat <<EOF | kubectl apply -n $NAMESPACE -f -
+    MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-bare.yaml
+    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | kubectl apply -f -
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo update
+    helm install ksm prometheus-community/kube-state-metrics --set image.tag=v2.8.2 -n $NAMESPACE
+    helm install nodeexporter prometheus-community/prometheus-node-exporter -n $NAMESPACE
+    cat <<EOF | kubectl apply -n $NAMESPACE -f -
 kind: ConfigMap
 metadata:
   name: grafana-agent-logs
@@ -2026,149 +2027,211 @@ data:
         
     
 EOF
-        MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
-        /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
-        #workaround
-        kubectl delete -n default StatefulSets/grafana-agent
-    fi
+    MANIFEST_URL=https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/agent-loki.yaml
+    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/grafana/agent/v0.32.1/production/kubernetes/install-bare.sh)" | sed "s/namespace: default/namespace: $NAMESPACE/" | kubectl apply -n $NAMESPACE -f -
+    #workaround
+    kubectl delete -n default StatefulSets/grafana-agent
+  fi
 }
 
 function oci_list_compartment() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_list_compartment tenancy"
-    else
-        TENANCY=$1
-        $OCI --profile $TENANCY iam compartment list | jq '[ .data[] | select (.name != "ManagedCompartmentForPaaS") | { name: ."name", ocid:."id"} ]'
-    fi
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_list_compartment tenancy"
+  else
+    TENANCY=$1
+    $OCI --profile $TENANCY iam compartment list | jq '[ .data[] | select (.name != "ManagedCompartmentForPaaS") | { name: ."name", ocid:."id"} ]'
+  fi
 }
 
 function oci_list_instance_running() {
-    if [ "$#" -ne 1 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_list_instance_running tenancy compartment_ocid"
-    else
-        TENANCY=$1
-        COMPARTMENT_OCID=$2
-        $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | select(."lifecycle-state" == "RUNNING" ) | { name:."display-name",ocid:."id" } ]'
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_list_instance_running tenancy compartment_ocid"
+  else
+    TENANCY=$1
+    COMPARTMENT_OCID=$2
+    $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | select(."lifecycle-state" == "RUNNING" ) | { name:."display-name",ocid:."id" } ]'
 
-    fi
+  fi
 }
 
 function oci_list_vcn() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_list_vcn tenancy compartment_ocid"
-    else
-        TENANCY=$1
-        COMPARTMENT_OCID=$2
-        $OCI --profile $TENANCY network vcn list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | {ocid:.id, name:."display-name" , cidr:."cidr-block"} ]'
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_list_vcn tenancy compartment_ocid"
+  else
+    TENANCY=$1
+    COMPARTMENT_OCID=$2
+    $OCI --profile $TENANCY network vcn list --compartment-id $COMPARTMENT_OCID | jq '[ .data[] | {ocid:.id, name:."display-name" , cidr:."cidr-block"} ]'
 
-    fi
+  fi
 }
 
 function oci_get_all_tenancy_compartment_triplet() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_get_all_tenancy_compartment_triplet"
-    else
-        jq '[ .[] | { tenancy:.tenancy, "compartment-ocid":.compartments[0].ocid, "compartment-name":.compartments[0].name } ]' <./oci.json
-    fi
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_get_all_tenancy_compartment_triplet"
+  else
+    jq '[ .[] | { tenancy:.tenancy, "compartment-ocid":.compartments[0].ocid, "compartment-name":.compartments[0].name } ]' <./oci.json
+  fi
 }
 
 function _json_to_shell() {
-    cat | jq -r '(.[0] | keys_unsorted) as $keys | $keys, map([.[ $keys[] ]|tostring])[] | @sh' | tail -n +2
+  cat | jq -r '(.[0] | keys_unsorted) as $keys | $keys, map([.[ $keys[] ]|tostring])[] | @sh' | tail -n +2
 }
 
 function oci_get_all_running_instance() {
-    if [ "$#" -ne 0 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_get_all_running_instance"
-    else
-        _E=()
-        for ID in $(oci_get_all_tenancy_compartment_triplet | _json_to_shell); do
-            _E+=($ID)
-        done
-        echo -e "["
-        for ((_i = 0; _i < ${#_E[@]}; _i += 3)); do
-            #echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
-            TENANCY=$(echo ${_E[$_i]} | tr -d '\047')
-            COMPARTMENT=$(echo ${_E[$_i + 1]} | tr -d '\047')
-            if [ $_i != 0 ]; then
-                echo -e ","
-            fi
-            $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT | jq --arg tenancy "$TENANCY" '.data[0] | select(."lifecycle-state" == "RUNNING") | {tenancy:$tenancy,ocid:.id,name:."display-name"}'
-        done
-        echo "]"
-    fi
-    # reboot $OCI --profile name compute instance action  --action RESET --instance-id ocid1.instance.oc1.eu-marseille-1.anwxeljvaluevq73a
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_get_all_running_instance"
+  else
+    _E=()
+    for ID in $(oci_get_all_tenancy_compartment_triplet | _json_to_shell); do
+      _E+=($ID)
+    done
+    echo -e "["
+    for ((_i = 0; _i < ${#_E[@]}; _i += 3)); do
+      #echo "n° $_i : ${_E[$_i]} / ${_E[$_i+1]} / ${_E[$_i+2]}"
+      TENANCY=$(echo ${_E[$_i]} | tr -d '\047')
+      COMPARTMENT=$(echo ${_E[$_i + 1]} | tr -d '\047')
+      if [ $_i != 0 ]; then
+        echo -e ","
+      fi
+      $OCI --profile $TENANCY compute instance list --compartment-id $COMPARTMENT | jq --arg tenancy "$TENANCY" '.data[0] | select(."lifecycle-state" == "RUNNING") | {tenancy:$tenancy,ocid:.id,name:."display-name"}'
+    done
+    echo "]"
+  fi
 }
+
 function oci_action_instance() {
-    if [ "$#" -ne 2 ]; then
-        echo "Illegal number of parameters:" && echo "    usage oci_action_instance instance_name action"
-    else
-        NAME=$1
-        ACTION=$2
-        oci_get_all_running_instance | jq --arg name $NAME '.[] | select(.name == $name) | .ocid'
-    fi
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage oci_action_instance instance_name action (ex RESET)"
+  else
+    NAME=$1
+    ACTION=$2
+    oci_get_all_running_instance | jq --arg name $NAME '.[] | select(.name == $name) ' >/tmp/instance.json
+    INSTANCE_ID=$(cat /tmp/instance.json | jq '.ocid' | sed 's/\"//g')
+    TENANCY=$(cat /tmp/instance.json | jq '.tenancy' | sed 's/\"//g')
+    rm /tmp/instance.json
+    $OCI --profile $TENANCY compute instance action --action $ACTION --instance-id $INSTANCE_ID
+  fi
+}
+
+function dev_install_local_registry() {
+  helm repo add twuni https://helm.twun.io
+  helm upgrade --install docker-registry \
+    --create-namespace --namespace dev-container-registry \
+    --set replicaCount=1 twuni/docker-registry
+  cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: docker-registry
+  namespace: dev-container-registry
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  rules:
+    - host: $DOCKER_REGISTRY_HOST
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: docker-registry
+                port:
+                  number: 5000
+  tls:
+  - hosts: 
+      - $DOCKER_REGISTRY_HOST
+    secretName: docker-registry-cert
+EOF
+  TRAEFIK_LB_IP=$(cluster_get_traefik_lb_ip)
+  sudo bash -c "echo '$TRAEFIK_LB_IP docker-registry.local' >> /etc/hosts"
+  cluster_deploy_hosts
+
+}
+function dev_uninstall_local_registry() {
+  helm uninstall --namespace dev-container-registry docker-registry
+  kubectl delete namespace dev-container-registry
+  sudo sed -i '/docker-registry.local/d' /etc/hosts
+  cluster_deploy_hosts
+}
+
+function cluster_deploy_ca_cert() {
+  echo -e "$ROOT_CA" | base64 -d >/tmp/root_ca.crt
+  SHA=$(openssl x509 -inform pem -in /tmp/root_ca.crt -outform DER | sha1sum | cut -f1 -d' ')
+  for MEMBER in $CLUSTER_MEMBERS; do
+    scp /tmp/root_ca.crt root@$MEMBER:/usr/local/share/ca-certificates/$SHA.crt
+    ssh root@$MEMBER update-ca-certificates
+  done
+  sudo cp /tmp/root_ca.crt /usr/local/share/ca-certificates/$SHA.crt
+  sudo update-ca-certificates
+  rm /tmp/root_ca.crt
 }
 
 function cluster_help() {
-    echo "oci_list_compartment:                              list all the tenancy compartments"
-    echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
-    echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
-    echo "oci_get_all_tenancy_compartment_triplet:           get all tenancy and compartment ocid from oci.json"
-    echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
-    echo "cluster_apt_install:                               install an apt package on all the cluster"
-    echo "cluster_cilium_full_status:                        issue cilium status on each member"
-    echo "cluster_cilium_hostip_all                          get all cilium pods IPP"
-    echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
-    echo "cluster_copy_file_as_current_user:                 copy local file to each member"
-    echo "cluster_copy_file_as_root:                         copy local file as root to each member"
-    echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
-    echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
-    echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
-    echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
-    echo "cluster_init_create_control_plane_pool_kubernetes: create control plane with ipam=kubernetes"
-    echo "cluster_init_create_control_plane:                 create control plane with ipam=cluster-pool"
-    echo "cluster_init_create_master_haproxy_cfg:            create a basic haproxy 443/tcp proxy to traefik"
-    echo "cluster_init_create_member:                        join a unique member to k8s cluster given its name"
-    echo "cluster_init_create_members:                       join all members to k8s cluster"
-    echo "cluster_init_create_post_install:                  run post install deployement (certmanager, traefik, dashboard)"
-    echo "cluster_init_install_certmanager:                  deploy cert-manager with ca"
-    echo "cluster_init_install_cri_docker:                   install cri_docker on arm64 only"
-    echo "cluster_init_install_dashboard:                    deploy dashboard"
-    echo "cluster_init_install_longhorn:                     install longhorn storage management"
-    echo "cluster_init_install_longhorn_ingress:             install longhorn ingress for all LONGHORN_DASHBOARD_DNS_NAMES"
-    echo "cluster_init_install_openebs:                      install openEbs storage management"
-    echo "cluster_init_install_traefik:                      deploy the traefik helm chart in kube-traefik namespace"
-    echo "cluster_iptables_flush:                            flush iptables on control plane and all members"
-    echo "cluster_ping_host_from_members:                    ping the given host from each member"
-    echo "cluster_reboot:                                    reboot all the cluster"
-    echo "cluster_reset_control_plane:                       delete the control plane"
-    echo "cluster_reset_members:                             delete all members"
-    echo "cluster_reset_storage:                             empty all /storage"
-    echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
-    echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
-    echo "cluster_run_on_all_members_as_root:                run a command on each member"
-    echo "cluster_test_tcp_port:                             open a tcp server and try to reach it"
-    echo "cluster_test_udp_port:                             open a udp server and try to reach it"
-    echo "cluster_traefik_launch_simple_proxy:               lauche simpleproxy from private ip to traefik loadbalancer"
-    echo "create_admin_user_with_key:                        create an admin user with its home directory and a ssh key"
-    echo "dashboard_get_token:                               retrieve dashboard administrator token"
-    echo "get_gateway_from_ip:                               get gateway for ip"
-    echo "get_gateway:                                       get gateway for named host"
-    echo "get_host_arch:                                     display the debian host arch"
-    echo "get_kube_dns_ip:                                   compute kube-dns internal ip for Service CIDR"
-    echo "get_remote_interface_from_ip:                      get the remote interface corresponding to ip"
-    echo "get_remote_interface:                              get the remote interface on a host giving its mac address"
-    echo "get_subnet_from_ip:                                get subnet for ip"
-    echo "get_subnet:                                        get subnet for named host"
-    echo "init_allow_keys_for_root:                          allow all admins keys in the new host"
-    echo "init_create_admin_user_with_key:                   create an admin user on a new host"
-    echo "init_create_private_interface:                     create the private interface"
-    echo "init_install_cri_docker:                           deploy the cri_docker on the new host"
-    echo "init_install_software:                             install and uptate initial sofware for runnig cluster"
-    echo "init_set_hostname:                                 set the hostname of the new member"
-    echo "init_set_iptables_members:                         set iptables an all members"
-    echo "init_set_iptables:                                 deploy the needed iptables on the new host"
-    echo "wg_meshconf_deploy_config:                         generate and deploy wireguard mesh network"
-    echo "wg_meshconf_get_all_peers_sorted:                  parse and sort the wireguard csv db"
-    echo "wg_meshconf_init:                                  initialise the wg meshconf database"
-    echo "wg_meshconf_showpeers:                             list all peers in wireguard mesh network"
+  echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
+  echo "cluster_apt_install:                               install an apt package on all the cluster"
+  echo "cluster_cilium_full_status:                        issue cilium status on each member"
+  echo "cluster_cilium_hostip_all                          get all cilium pods IPP"
+  echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
+  echo "cluster_copy_file_as_current_user:                 copy local file to each member"
+  echo "cluster_copy_file_as_root:                         copy local file as root to each member"
+  echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
+  echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
+  echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
+  echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
+  echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
+  echo "cluster_init_create_control_plane_pool_kubernetes: create control plane with ipam=kubernetes"
+  echo "cluster_init_create_control_plane:                 create control plane with ipam=cluster-pool"
+  echo "cluster_init_create_master_haproxy_cfg:            create a basic haproxy 443/tcp proxy to traefik"
+  echo "cluster_init_create_member:                        join a unique member to k8s cluster given its name"
+  echo "cluster_init_create_members:                       join all members to k8s cluster"
+  echo "cluster_init_create_post_install:                  run post install deployement (certmanager, traefik, dashboard)"
+  echo "cluster_init_install_certmanager:                  deploy cert-manager with ca"
+  echo "cluster_init_install_cri_docker:                   install cri_docker on arm64 only"
+  echo "cluster_init_install_dashboard:                    deploy dashboard"
+  echo "cluster_init_install_longhorn_ingress:             install longhorn ingress for all LONGHORN_DASHBOARD_DNS_NAMES"
+  echo "cluster_init_install_longhorn:                     install longhorn storage management"
+  echo "cluster_init_install_openebs:                      install openEbs storage management"
+  echo "cluster_init_install_traefik:                      deploy the traefik helm chart in kube-traefik namespace"
+  echo "cluster_iptables_flush:                            flush iptables on control plane and all members"
+  echo "cluster_ping_host_from_members:                    ping the given host from each member"
+  echo "cluster_reboot:                                    reboot all the cluster"
+  echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
+  echo "cluster_reset_control_plane:                       delete the control plane"
+  echo "cluster_reset_members:                             delete all members"
+  echo "cluster_reset_storage:                             empty all /storage"
+  echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
+  echo "cluster_run_on_all_members_as_root:                run a command on each member"
+  echo "cluster_test_tcp_port:                             open a tcp server and try to reach it"
+  echo "cluster_test_udp_port:                             open a udp server and try to reach it"
+  echo "cluster_traefik_launch_simple_proxy:               lauche simpleproxy from private ip to traefik loadbalancer"
+  echo "create_admin_user_with_key:                        create an admin user with its home directory and a ssh key"
+  echo "dashboard_get_token:                               retrieve dashboard administrator token"
+  echo "dev_install_local_registry                         create a local docker registry without pvc for developpement (docker-registry.local)"
+  echo "get_gateway_from_ip:                               get gateway for ip"
+  echo "get_gateway:                                       get gateway for named host"
+  echo "get_host_arch:                                     display the debian host arch"
+  echo "get_kube_dns_ip:                                   compute kube-dns internal ip for Service CIDR"
+  echo "get_remote_interface_from_ip:                      get the remote interface corresponding to ip"
+  echo "get_remote_interface:                              get the remote interface on a host giving its mac address"
+  echo "get_subnet_from_ip:                                get subnet for ip"
+  echo "get_subnet:                                        get subnet for named host"
+  echo "init_allow_keys_for_root:                          allow all admins keys in the new host"
+  echo "init_create_admin_user_with_key:                   create an admin user on a new host"
+  echo "init_create_private_interface:                     create the private interface"
+  echo "init_install_cri_docker:                           deploy the cri_docker on the new host"
+  echo "init_install_software:                             install and uptate initial sofware for runnig cluster"
+  echo "init_set_hostname:                                 set the hostname of the new member"
+  echo "init_set_iptables_members:                         set iptables an all members"
+  echo "init_set_iptables:                                 deploy the needed iptables on the new host"
+  echo "oci_get_all_tenancy_compartment_triplet:           get all tenancy and compartment ocid from oci.json"
+  echo "oci_list_compartment:                              list all the tenancy compartments"
+  echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
+  echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
+  echo "wg_meshconf_deploy_config:                         generate and deploy wireguard mesh network"
+  echo "wg_meshconf_get_all_peers_sorted:                  parse and sort the wireguard csv db"
+  echo "wg_meshconf_init:                                  initialise the wg meshconf database"
+  echo "wg_meshconf_showpeers:                             list all peers in wireguard mesh network"
 }
