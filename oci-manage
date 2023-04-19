@@ -23,6 +23,7 @@ TRAEFIK_DASHBOARD_DNS_NAMES=("traefik-dashboard.fqdn" "traefik.kube-traefik.svc.
 HUBBLE_DASHBOARD_DNS_NAMES=("hubble-ui.fqdn" "hubble-ui.kube-system.svc.cluster.local")
 ROOT_CA="LS0tLS1CRUdJTiBDRVJ198Z1290ZNKJNDQSQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 DOCKER_REGISTRY_HOST=docker-registry.local
+DOCKER_REGISTRY_UI_DNS_NAMES=("docker-registry-ui.kube-system.svc.cluster.local")
 # cat ~/pki/ca.crt | base64 | tr -d '\n'
 CA="LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 # cat ~/pki/ca.key | base64 | tr -d '\n'
@@ -75,6 +76,11 @@ HUBBLE_DASHBOARD_DNS_NAMES_JS=$(
 LONGHORN_DASHBOARD_DNS_NAMES_JS=$(
   RES=""
   for NAME in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
+  echo "[${RES:0:-1}]"
+)
+DOCKER_REGISTRY_UI_DNS_NAMES_JS=$(
+  RES=""
+  for NAME in ${DOCKER_REGISTRY_UI_DNS_NAMES[@]}; do RES+="$NAME,"; done
   echo "[${RES:0:-1}]"
 )
 function create_admin_user_with_key() {
@@ -2115,10 +2121,29 @@ function oci_action_instance() {
 
 function dev_install_local_registry() {
   helm repo add twuni https://helm.twun.io
+  helm repo add joxit https://helm.joxit.dev
   helm upgrade --install docker-registry \
     --create-namespace --namespace dev-container-registry \
     --set replicaCount=1 twuni/docker-registry
+  helm upgrade --install --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.svc.cluster.local:5000
   cat <<EOF | kubectl apply -f -
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: cors-header
+  namespace: dev-container-registry
+spec:
+  headers:
+    accessControlAllowMethods:
+      - "GET"
+      - "OPTIONS"
+      - "HEAD"
+      - "DELETE"
+    accessControlAllowOriginList:
+      - "*"
+    accessControlMaxAge: 100
+    addVaryHeader: true
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -2126,6 +2151,7 @@ metadata:
   namespace: dev-container-registry
   annotations:
     kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
@@ -2148,10 +2174,57 @@ EOF
   TRAEFIK_LB_IP=$(cluster_get_traefik_lb_ip)
   sudo bash -c "echo '$TRAEFIK_LB_IP docker-registry.local' >> /etc/hosts"
   cluster_deploy_hosts
-
+  cluster_init_docker_registry_ui_ingress
 }
+
+function cluster_init_docker_registry_ui_ingress() {
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_cilium_hubble_ui_ingress"
+  else
+    cat <<EOF >/tmp/cluster_init_docker_registry_ui_ingress.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: docker-registry-ui
+  namespace: dev-container-registry
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
+    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  rules:
+EOF
+    for HOST in ${DOCKER_REGISTRY_UI_DNS_NAMES[@]}; do
+      cat <<EOF >>/tmp/cluster_init_docker_registry_ui_ingress.yaml
+    - host: $HOST
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: joxit-docker-registry-ui-user-interface
+                port:
+                  number: 80
+EOF
+    done
+    cat <<EOF >>/tmp/cluster_init_docker_registry_ui_ingress.yaml
+  tls:
+  - hosts: $DOCKER_REGISTRY_UI_DNS_NAMES_JS
+    secretName: docker-registry-ui-cert
+---
+EOF
+    kubectl apply -f /tmp/cluster_init_docker_registry_ui_ingress.yaml
+    rm /tmp/cluster_init_docker_registry_ui_ingress.yaml
+  fi
+}
+
 function dev_uninstall_local_registry() {
   helm uninstall --namespace dev-container-registry docker-registry
+  helm uninstall --namespace=dev-container-registry docker-registry-ui joxit/docker-registry-ui
   kubectl delete namespace dev-container-registry
   sudo sed -i '/docker-registry.local/d' /etc/hosts
   cluster_deploy_hosts

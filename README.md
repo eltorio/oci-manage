@@ -49,6 +49,10 @@
   - [5.8. Accès aux tableaux de bord](#58-accès-aux-tableaux-de-bord)
   - [5.9. Grafana](#59-grafana)
   - [5.10. Registre local de container](#510-registre-local-de-container)
+    - [5.10.1. créer une résolution de nom spécifique:](#5101-créer-une-résolution-de-nom-spécifique)
+    - [5.10.2. Pour ajouter une image:](#5102-pour-ajouter-une-image)
+    - [5.10.3. Pour le désinstaller:](#5103-pour-le-désinstaller)
+    - [5.10.4. Interface utilisateur](#5104-interface-utilisateur)
   - [5.11. Bird sur le control-plane](#511-bird-sur-le-control-plane)
 
 ## 1.1. Objectifs
@@ -511,7 +515,7 @@ kubectl
 Le CI/CD c'est bien, mais en développement ça peut être long.  
 Un registre local peut-être pratique !  
 Pour installer le registre:
-1- créer une résolution de nom spécifique:
+### 5.10.1. créer une résolution de nom spécifique:
 Repérer l'adresse ip du load balancer de traefik avec `cluster_get_traefik_lb_ip`  ici 172.31.255.49
 ```sh
 kubectl edit configmap coredns -n kube-system
@@ -552,16 +556,19 @@ metadata:
 ```
 dev_install_local_registry
 ```
-Pour ajouter une image:  
+### 5.10.2. Pour ajouter une image:  
 ```sh
 docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
 #et l'utiliser
 helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
 ```
-Pour le désinstaller:
+### 5.10.3. Pour le désinstaller:
 ```
 dev_uninstall_local_registry
 ```
+### 5.10.4. Interface utilisateur
+Les Ingress sont définis par la variable DOCKER_REGISTRY_UI_DNS_NAMES
+
 ## 5.11. Bird sur le control-plane
 TODO
 ```sh
