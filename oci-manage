@@ -1,36 +1,36 @@
 #!/bin/bash
 #### default values (real are in ./oci-manage-config.sh )
 OCI=~/bin/oci
-PRIVATE_INTERFACE_FILE="60-private-interface.yaml"
-CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
-CONTROL_PLANE_LOCAL=master
-CONTROL_PLANE_IP=10.0.253.75
-CONTROL_PLANE_PORT=6443
-CLUSTER_AS=4201234567
 ARM_SRC=master
-X86_64_SRC=node4
-CLUSTER_MEMBERS='node2 node3 node4 node5 node6 node7 node8'
-POD_CIDR=172.28.0.0/14
-SERVICE_CIDR=172.24.0.0/14
-IP_POOL=172.31.255.0/24
-CLUSTER_POOL_CIDR=172.24.0.0/13
-OCI_DB=~/oci.json
 CA_COMPANY="my"
-TRAEFIK_ADMIN='admin'
+CLUSTER_AS=4201234567
+CLUSTER_MEMBERS='node2 node3 node4 node5 node6 node7 node8'
+CLUSTER_POOL_CIDR=172.24.0.0/13
+CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
+CONTROL_PLANE_IP=10.0.253.75
+CONTROL_PLANE_LOCAL=master
+CONTROL_PLANE_PORT=6443
+IP_POOL=172.31.255.0/24
+OCI_DB=~/oci.json
+POD_CIDR=172.28.0.0/14
+PRIVATE_INTERFACE_FILE="60-private-interface.yaml"
+SERVICE_CIDR=172.24.0.0/14
 TRAEFIK_ADMIN_PASSWORD='strongpassword'
+TRAEFIK_ADMIN='admin'
+X86_64_SRC=node4
 #TRAEFIK_ADMIN TRAEFIK_ADMIN_PASSWORD are also used for hubble-ui dashboard
-TRAEFIK_DASHBOARD_DNS_NAMES=("traefik-dashboard.fqdn" "traefik.kube-traefik.svc.cluster.local")
-HUBBLE_DASHBOARD_DNS_NAMES=("hubble-ui.fqdn" "hubble-ui.kube-system.svc.cluster.local")
-ROOT_CA="LS0tLS1CRUdJTiBDRVJ198Z1290ZNKJNDQSQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 DOCKER_REGISTRY_HOST=docker-registry.local
 DOCKER_REGISTRY_UI_DNS_NAMES=("docker-registry-ui.kube-system.svc.cluster.local")
+HUBBLE_DASHBOARD_DNS_NAMES=("hubble-ui.fqdn" "hubble-ui.kube-system.svc.cluster.local")
+ROOT_CA="LS0tLS1CRUdJTiBDRVJ198Z1290ZNKJNDQSQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
+TRAEFIK_DASHBOARD_DNS_NAMES=("traefik-dashboard.fqdn" "traefik.kube-traefik.svc.cluster.local")
 # cat ~/pki/ca.crt | base64 | tr -d '\n'
 CA="LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 # cat ~/pki/ca.key | base64 | tr -d '\n'
 CA_KEY="LS0tLS1C0tLQo="
 DASHBOARD_DNS_NAMES=("dashboard.fqdn" "dashboard.kube-dashboard.svc.cluster.local")
 LONGHORN_DASHBOARD_DNS_NAMES=("longhorn.fqdn" "longhorn-frontend.kube-system.svc.cluster.local")
-STORAGE_BACKEND=""
+STORAGE_BACKEND="longhorn"
 STORAGE_LOCATION="/storage"
 JIVA_REPLICAS=1
 #STORAGE_BACKEND="longhorn"
@@ -410,6 +410,8 @@ function cluster_init_create_post_install() {
     if [ "$STORAGE_BACKEND" == "longhorn" ]; then
       cluster_init_install_longhorn
       cluster_init_install_longhorn_ingress
+    else
+      cluster_init_install_openebs
     fi
     cluster_init_install_dashboard
     cluster_init_install_traefik_ingressroute
@@ -418,6 +420,9 @@ function cluster_init_create_post_install() {
     cluster_init_install_traefik_ingressroute
     cilium hubble enable --ui
     cluster_init_cilium_hubble_ui_ingress
+    cluster_run_on_all_members_as_root "systemctl restart systemd-resolved; systemctl restart haproxy"
+    sudo systemctl restart systemd-resolved
+    sudo systemctl restart haproxy
   fi
 }
 
@@ -1416,7 +1421,8 @@ function cluster_init_install_longhorn() {
   else
     helm repo add longhorn https://charts.longhorn.io
     helm repo update
-    helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version $LONGHORN_VERSION
+    helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version $LONGHORN_VERSION \
+        --set persistence.defaultClassReplicaCount=1,defaultSettings.defaultReplicaCount=1,defaultSettings.defaultDataPath=$STORAGE_LOCATION
   fi
 }
 
@@ -2122,10 +2128,11 @@ function oci_action_instance() {
 function dev_install_local_registry() {
   helm repo add twuni https://helm.twun.io
   helm repo add joxit https://helm.joxit.dev
-  helm upgrade --install docker-registry \
+  helm repo update
+  helm upgrade --install docker-registry twuni/docker-registry \
     --create-namespace --namespace dev-container-registry \
-    --set replicaCount=1 twuni/docker-registry
-  helm upgrade --install --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.svc.cluster.local:5000
+    --set replicaCount=1,persistence.enabled=false,persistence.deleteEnabled=true
+  helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.svc.cluster.local:5000
   cat <<EOF | kubectl apply -f -
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

@@ -384,13 +384,14 @@ cluster_reset_storage
 cluster_reset_control_plane
 ```
 ### 5.4.2. Réinstallation
+Pensez à choisir le backend de persistence qui est openEbs par défaut.  
+pour utiliser Longhorn il faut changer la variable: `STORAGE_BACKEND="longhorn"`
 ```sh
 rm -f ~/.kube/config
 sudo rm -f /root/.kube/config
 cluster_init_get_cilium_cli
 cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
 # si besoin
-cluster_init_install_openebs
 cluster_init_create_post_install_grafana
 ```
 
