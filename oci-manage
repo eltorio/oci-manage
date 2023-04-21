@@ -2262,7 +2262,7 @@ function cluster_init_get_cilium_cli() {
   rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
 }
 
-function cluster_reset_remove_oci_dns_issuer(){
+function cluster_reset_remove_oci_dns_issuer() {
   helm uninstall --namespace kube-certmanager cert-manager-webhook-oci
   kubectl delete -n kube-certmanager secret/oci-profile
   kubectl delete -n kube-certmanager secret/letsencrypt-oci
@@ -2276,7 +2276,7 @@ function cluster_init_install_oci_dns_issuer() {
   helm repo add highcanfly https://helm-repo.highcanfly.club/
   helm repo update
   helm install --namespace kube-certmanager cert-manager-webhook-oci highcanfly/cert-manager-webhook-oci
-  cat << EOF | kubectl apply -n kube-certmanager -f -
+  cat <<EOF | kubectl apply -n kube-certmanager -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -2329,8 +2329,23 @@ spec:
               ociProfileSecretName: oci-profile
 EOF
 }
+
+function azure_install_cli() {
+  sudo mkdir -p /etc/apt/keyrings
+  curl -sLS https://packages.microsoft.com/keys/microsoft.asc |
+    gpg --dearmor |
+    sudo tee /etc/apt/keyrings/microsoft.gpg >/dev/null
+  sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
+  AZ_REPO=$(lsb_release -cs)
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" |
+    sudo tee /etc/apt/sources.list.d/azure-cli.list
+  sudo apt-get update
+  sudo apt-get install azure-cli
+}
+
 function cluster_help() {
-  echo "cluster_apt_dist_upgrade:                          'apt dist-upgrade on all the cluster"
+  echo "azure_install_cli:                                 install azure cli"
+  echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
   echo "cluster_apt_install:                               install an apt package on all the cluster"
   echo "cluster_cilium_full_status:                        issue cilium status on each member"
   echo "cluster_cilium_hostip_all                          get all cilium pods IPP"

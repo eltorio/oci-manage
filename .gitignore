@@ -38,3 +38,12 @@ oci.sctg.eu.org.key
 go/
 .docker/
 
+.azure/az.json
+.azure/az.sess
+.azure/azureProfile.json
+.azure/commandIndex.json
+.azure/config
+.azure/telemetry.txt
+.azure/versionCheck.json
+.azure/commands/2023-04-21.17-27-27.unknown_command.1090090.log
+.azure/logs/telemetry.log
