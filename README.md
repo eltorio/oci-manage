@@ -53,6 +53,8 @@
     - [5.10.2. Pour ajouter une image:](#5102-pour-ajouter-une-image)
     - [5.10.3. Pour le désinstaller:](#5103-pour-le-désinstaller)
     - [5.10.4. Interface utilisateur](#5104-interface-utilisateur)
+  - [Letsencrypt](#letsencrypt)
+    - [Oracle OCI DNS01](#oracle-oci-dns01)
   - [5.11. Bird sur le control-plane](#511-bird-sur-le-control-plane)
 
 ## 1.1. Objectifs
@@ -570,6 +572,30 @@ dev_uninstall_local_registry
 ### 5.10.4. Interface utilisateur
 Les Ingress sont définis par la variable DOCKER_REGISTRY_UI_DNS_NAMES
 
+## Letsencrypt
+### Oracle OCI DNS01
+Pour créer deux ClusterIssuer appelés letstencrypt-oci et letsentrypt-staging-oci (à des fins de test) il faut compléter les variables OCI_*.  
+Ensuite installer le webhook `cluster_init_install_oci_dns_issuer`.  
+pour créer un certificat *staging*
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test.myocihostedzone.org
+  namespace: kube-certmanager
+spec:
+  commonName: test.myocihostedzone.org
+  dnsNames:
+    - ttest.myocihostedzone.org
+  issuerRef:
+    name: letsencrypt-staging-oci
+    kind: ClusterIssuer
+  secretName: test.myocihostedzone.org
+```
+pour désinstaller:
+```sh
+cluster_init_remove_oci_dns_issuer
+```
 ## 5.11. Bird sur le control-plane
 TODO
 ```sh
