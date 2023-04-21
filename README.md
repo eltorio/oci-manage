@@ -51,11 +51,18 @@
   - [5.10. Registre local de container](#510-registre-local-de-container)
     - [5.10.1. créer une résolution de nom spécifique:](#5101-créer-une-résolution-de-nom-spécifique)
     - [5.10.2. Pour ajouter une image:](#5102-pour-ajouter-une-image)
-    - [5.10.3. Pour le désinstaller:](#5103-pour-le-désinstaller)
+    - [5.10.3. Pour désinstaller le registre local:](#5103-pour-désinstaller-le-registre-local)
     - [5.10.4. Interface utilisateur](#5104-interface-utilisateur)
-  - [Letsencrypt](#letsencrypt)
-    - [Oracle OCI DNS01](#oracle-oci-dns01)
-  - [5.11. Bird sur le control-plane](#511-bird-sur-le-control-plane)
+  - [5.11. Letsencrypt](#511-letsencrypt)
+    - [5.11.1. Oracle OCI DNS01](#5111-oracle-oci-dns01)
+      - [5.11.1.1. Installation](#51111-installation)
+      - [5.11.1.2. Utilisation](#51112-utilisation)
+      - [5.11.1.3. Désinstallation](#51113-désinstallation)
+    - [5.11.2. Azure DNS](#5112-azure-dns)
+      - [5.11.2.1. Installation](#51121-installation)
+      - [5.11.2.2. Utilisation](#51122-utilisation)
+      - [5.11.2.3. Désinstallation](#51123-désinstallation)
+  - [5.12. Bird sur le control-plane](#512-bird-sur-le-control-plane)
 
 ## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
@@ -565,17 +572,19 @@ docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
 #et l'utiliser
 helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
 ```
-### 5.10.3. Pour le désinstaller:
+### 5.10.3. Pour désinstaller le registre local:
 ```
 dev_uninstall_local_registry
 ```
 ### 5.10.4. Interface utilisateur
 Les Ingress sont définis par la variable DOCKER_REGISTRY_UI_DNS_NAMES
 
-## Letsencrypt
-### Oracle OCI DNS01
+## 5.11. Letsencrypt
+### 5.11.1. Oracle OCI DNS01
+#### 5.11.1.1. Installation
 Pour créer deux ClusterIssuer appelés letstencrypt-oci et letsentrypt-staging-oci (à des fins de test) il faut compléter les variables OCI_*.  
 Ensuite installer le webhook `cluster_init_install_oci_dns_issuer`.  
+#### 5.11.1.2. Utilisation
 pour créer un certificat *staging*
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -592,11 +601,55 @@ spec:
     kind: ClusterIssuer
   secretName: test.myocihostedzone.org
 ```
-pour désinstaller:
+#### 5.11.1.3. Désinstallation
 ```sh
 cluster_init_remove_oci_dns_issuer
 ```
-## 5.11. Bird sur le control-plane
+### 5.11.2. Azure DNS
+Tout d'abord la cli doit être installée
+#### 5.11.2.1. Installation
+```sh
+az login --use-device-code
+AZURE_CERT_MANAGER_NEW_SP_NAME=kube-cluster-azure-sp
+# This is the name of the resource group that you have your dns zone in.
+AZURE_DNS_ZONE_RESOURCE_GROUP=AZURE_DNS_ZONE_RESOURCE_GROUP
+# The DNS zone name. It should be something like domain.com or sub.domain.com.
+AZURE_DNS_ZONE=example.org
+DNS_SP=$(az ad sp create-for-rbac --name $AZURE_CERT_MANAGER_NEW_SP_NAME --output json)
+AZURE_CERT_MANAGER_SP_APP_ID=$(echo $DNS_SP | jq -r '.appId')
+AZURE_CERT_MANAGER_SP_PASSWORD=$(echo $DNS_SP | jq -r '.password')
+AZURE_TENANT_ID=$(echo $DNS_SP | jq -r '.tenant')
+AZURE_SUBSCRIPTION_ID=$(az account show --output json | jq -r '.id')
+AZURE_DNS_ID=$(az network dns zone show --name $AZURE_DNS_ZONE --resource-group $AZURE_DNS_ZONE_RESOURCE_GROUP --query "id" --output tsv)
+az role assignment delete --assignee $AZURE_CERT_MANAGER_SP_APP_ID --role Contributor
+az role assignment create --assignee $AZURE_CERT_MANAGER_SP_APP_ID --role "DNS Zone Contributor" --scope $AZURE_DNS_ID
+```
+Mettez les variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MANAGER_SP_PASSWORD, AZURE_TENANT_ID, AZURE_DNS_ID et AZURE_SUBSCRIPTION_ID à jour dans votre oci-manage ou oci-manage-config.sh.   
+```sh
+cluster_init_azure_dns_issuer
+```
+#### 5.11.2.2. Utilisation
+pour créer un certificat *staging*
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test.example.org
+  namespace: kube-certmanager
+spec:
+  commonName: test.example.org
+  dnsNames:
+    - test.example.org
+  issuerRef:
+    name: letsencrypt-staging-azure
+    kind: ClusterIssuer
+  secretName: test.example.org
+```
+#### 5.11.2.3. Désinstallation
+```sh
+cluster_reset_remove_azure_dns_issuer
+```
+## 5.12. Bird sur le control-plane
 TODO
 ```sh
 sudo apt install bird

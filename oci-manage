@@ -1,5 +1,11 @@
 #!/bin/bash
 #### default values (real are in ./oci-manage-config.sh )
+AZURE_CERT_MANAGER_SP_APP_ID="4330169c-062c-4418-983d-0ae202fa7918"
+AZURE_CERT_MANAGER_SP_PASSWORD="pohsh5ahl1quoong6aa0iug8toogh3aengup0cha7E"
+AZURE_DNS_ID="/subscriptions/6ac7c0a9-95e3-4c76-81df-afdcb22f1b46/resourceGroups/ResourceName/providers/Microsoft.Network/dnszones/example.org"
+AZURE_DNS_ZONE=example.org
+AZURE_SUBSCRIPTION_ID="553f8fa4-6c82-4de7-888b-8981d757fe31"
+AZURE_TENANT_ID="3ea6cdac-a005-4d3e-bff7-1a5dbfa4716b"
 OCI=~/bin/oci
 ARM_SRC=master
 CA_COMPANY="my"
@@ -2343,6 +2349,71 @@ function azure_install_cli() {
   sudo apt-get install azure-cli
 }
 
+function cluster_reset_remove_azure_dns_issuer() {
+  kubectl delete -n kube-certmanager secret/letsencrypt-azure
+  kubectl delete -n kube-certmanager secret/letsencrypt-staging-azure
+  kubectl delete ClusterIssuer/letsencrypt-staging-azure
+  kubectl delete ClusterIssuer/letsencrypt-azure
+}
+
+function cluster_init_azure_dns_issuer(){
+  cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azuredns-config
+  namespace: kube-certmanager
+type: Opaque
+stringData:
+  azure-client-secret: "$AZURE_CERT_MANAGER_SP_PASSWORD"
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-azure
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: $LETSENCRYPT_USER
+    privateKeySecretRef:
+      name: letsencrypt-azure
+    solvers:
+    - dns01:
+        azureDNS:
+          clientID: $AZURE_CERT_MANAGER_SP_APP_ID
+          clientSecretSecretRef:
+            name: azuredns-config
+            key: azure-client-secret
+          subscriptionID: $AZURE_SUBSCRIPTION_ID
+          tenantID: $AZURE_TENANT_ID
+          resourceGroupName: $AZURE_DNS_ZONE_RESOURCE_GROUP
+          hostedZoneName: $AZURE_DNS_ZONE
+          environment: AzurePublicCloud
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging-azure
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: $LETSENCRYPT_USER
+    privateKeySecretRef:
+      name: letsencrypt-staging-azure
+    solvers:
+    - dns01:
+        azureDNS:
+          clientID: $AZURE_CERT_MANAGER_SP_APP_ID
+          clientSecretSecretRef:
+            name: azuredns-config
+            key: azure-client-secret
+          subscriptionID: $AZURE_SUBSCRIPTION_ID
+          tenantID: $AZURE_TENANT_ID
+          resourceGroupName: $AZURE_DNS_ZONE_RESOURCE_GROUP
+          hostedZoneName: $AZURE_DNS_ZONE
+          environment: AzurePublicCloud
+EOF
+}
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -2366,9 +2437,10 @@ function cluster_help() {
   echo "cluster_init_install_certmanager:                  deploy cert-manager with ca"
   echo "cluster_init_install_cri_docker:                   install cri_docker on arm64 only"
   echo "cluster_init_install_dashboard:                    deploy dashboard"
+  echo "cluster_init_azure_dns_issuer:                     install letsencrypt-azure and letsencrypt-staging-azure clusterissuer against Azure DNS zone"
   echo "cluster_init_install_longhorn_ingress:             install longhorn ingress for all LONGHORN_DASHBOARD_DNS_NAMES"
   echo "cluster_init_install_longhorn:                     install longhorn storage management"
-  echo "cluster_init_install_oci_dns_issuer                install letsencrypt-oci and letsencrypt-staging-oci clusterissuer againt OCI DNS zone"
+  echo "cluster_init_install_oci_dns_issuer                install letsencrypt-oci and letsencrypt-staging-oci clusterissuer against OCI DNS zone"
   echo "cluster_init_install_openebs:                      install openEbs storage management"
   echo "cluster_init_install_traefik:                      deploy the traefik helm chart in kube-traefik namespace"
   echo "cluster_iptables_flush:                            flush iptables on control plane and all members"
@@ -2377,7 +2449,8 @@ function cluster_help() {
   echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
   echo "cluster_reset_control_plane:                       delete the control plane"
   echo "cluster_reset_members:                             delete all members"
-  echo "cluster_reset_remove_oci_dns_issuer:                remove the OCI Letsencrypt certificate issuers"
+  echo "cluster_reset_remove_azure_dns_issuer:             remove the letsencrypt azure issuers"
+  echo "cluster_reset_remove_oci_dns_issuer:               remove the OCI Letsencrypt certificate issuers"
   echo "cluster_reset_storage:                             empty all /storage"
   echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
   echo "cluster_run_on_all_members_as_root:                run a command on each member"
