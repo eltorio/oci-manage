@@ -2470,6 +2470,13 @@ function cluster_convert_pem_to_base64() {
     cat $PEM | base64 | tr -d '\n'
   fi
 }
+
+function cluster_restart_haproxy() {
+  cluster_run_on_all_members_as_root "systemctl restart systemd-resolved ; systemctl restart haproxy"
+  echo "oci-master"
+  sudo systemctl restart systemd-resolved
+  sudo systemctl restart haproxy
+}
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -2508,6 +2515,7 @@ function cluster_help() {
   echo "cluster_reset_remove_azure_dns_issuer:             remove the letsencrypt azure issuers"
   echo "cluster_reset_remove_oci_dns_issuer:               remove the OCI Letsencrypt certificate issuers"
   echo "cluster_reset_storage:                             empty all /storage"
+  echo "cluster_restart_haproxy:                           restart haproxy and systemd-resolved"
   echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
   echo "cluster_run_on_all_members_as_root:                run a command on each member"
   echo "cluster_test_tcp_port:                             open a tcp server and try to reach it"

@@ -394,6 +394,12 @@ cluster_apt_dist_upgrade
 cluster_reboot
 ```
 
+After booting it is probably necessary to restart `haproxy` because name resolution is not consistent before the TTL expires
+
+```sh
+cluster_restart_haproxy
+```
+
 ## 4.6. Deploy a file
 
 ```sh
@@ -877,4 +883,5 @@ npm install markdown-translator -g
 md-translator set --key d5a37213c945793e297f0f609e293f99
 md-translator set --region westeurope
 md-translator translate --src README.fr-FR.md --dest README.md --from fr-FR --to en-US
+#update manually the toc
 ```
