@@ -417,7 +417,7 @@ node8.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.27
 ```
 Et tous les pods systèmes fonctionnent:  
 ```sh
-3hkubectl get pods -A
+kubectl get pods -A
 NAMESPACE              NAME                                                                 READY   STATUS    RESTARTS       AGE
 kube-certmanager       cert-manager-64f9f45d6f-8x7qw                                        1/1     Running   1 (28m ago)    3h
 kube-certmanager       cert-manager-cainjector-56bbdd5c47-h2fs9                             1/1     Running   1 (27m ago)    3h
