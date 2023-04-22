@@ -25,7 +25,7 @@
   - [2.6. creation manuelle du fichier `/etc/hosts` du control plane](#26-creation-manuelle-du-fichier-etchosts-du-control-plane)
   - [2.7. definitions du firewall](#27-definitions-du-firewall)
 - [3. Installation des nœuds actifs (workers) depuis le control-plane](#3-installation-des-nœuds-actifs-workers-depuis-le-control-plane)
-- [4. Quand tous les nœuds sont pré-installés](#4-quand-tous-les-nœuds-sont-pré-installés)
+- [4. oci-manage](#4-oci-manage)
   - [4.1. déployer le fichier hosts](#41-déployer-le-fichier-hosts)
   - [4.2. déployer le certificat racine](#42-déployer-le-certificat-racine)
   - [4.3. déployer la configuration HAProxy](#43-déployer-la-configuration-haproxy)
@@ -67,6 +67,7 @@
 ## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
 Essayer d'automatiser au maximum les tâches de déploiement sans utiliser d'outils spécifiques.  
+L'ensemble des `snippets` de création et d'automatisation est rassemblé dans le script `oci-manage`
 ## 1.2. Pré-requis
 - un compte oracle OCI gratuit par personne dans la même région
 - une clef ssh "super privée"
@@ -262,9 +263,50 @@ init_install_cri_docker $NODE_PUBLIC_IP
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
 init_create_private_interface $NODE_PUBLIC_IP $PRIVATE_MAC $PRIVATE_IP
 ```
-# 4. Quand tous les nœuds sont pré-installés
-Mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
-Avec oci-manage on peut alors effectuer des tâches "globales"
+# 4. oci-manage
+Quand tous les nœuds sont pré-installés  
+Avec `oci-manage` on peut alors effectuer des tâches "globales"  
+Il s'agit d'un ensemble de fonctions *bash* que nous utilisons pour gérer le cluster.  
+Certaines sont de simples *snippets* d'autres sont un peu plus avancées.  
+Les fonctions *utiles* sont listées dans `cluster_help`  
+Pour voir ce que contient un *snippet* il suffit de l'extraire avec `type xxxxxx`  
+Exemple avec la création du control-plane  
+```sh
+type cluster_init_create_control_plane
+cluster_init_create_control_plane is a function
+cluster_init_create_control_plane () 
+{ 
+    if [ -z "${FUNCNAME[1]}" ]; then
+        echo "call cluster_init_create_control_plane";
+        IPAM="ipam.mode=cluster-pool,ipam.operator.clusterPoolIPv4PodCIDRList=$CLUSTER_POOL_CIDR";
+    else
+        echo "call cluster_init_create_control_plane_pool_kubernetes";
+        IPAM="ipam.mode=kubernetes";
+    fi;
+    sudo mkdir -p /etc/kubernetes/pki/etcd;
+    sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/;
+    sudo chown -R root:root /etc/kubernetes;
+    sudo kubeadm init --skip-phases=addon/kube-proxy --ignore-preflight-errors=NumCPU --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR --cri-socket=unix:///run/cri-dockerd.sock --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS --node-name $HOSTNAME --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1);
+    set_systemd_resolve_to_k8s;
+    rm -rf $HOME/.kube;
+    mkdir -p $HOME/.kube;
+    sudo mkdir -p /root/.kube;
+    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config;
+    sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config;
+    sudo chown $(id -u):$(id -g) $HOME/.kube/config;
+    cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true;
+    cluster_init_create_ip_pool
+}
+```
+On remarque qu'un certain nombre de variables sont utilisées. Elles sont définies dans un fichier `oci-manage-config.sh` et les valeurs par défaut sont en tête du fichier `oci-manage`  
+Le chemin du fichier `oci-manage-config.sh` est codé en dur à la fin des valeurs par défaut de `oci-manage`  
+```sh
+# pour activer l'ensemble des fonctions de oci-manage
+. ~/oci-manage
+```
+À chaque ajout de nœud il faut mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
+À chaque changement de variable il faut appeler de nouveau `. ~/oci-manage`  
+
 ## 4.1. déployer le fichier hosts
 - Créer manuellement le fichier `sudo vi /etc/hosts` du control-plane puis déployez le.  
 ```sh
@@ -526,7 +568,7 @@ Le CI/CD c'est bien, mais en développement ça peut être long.
 Un registre local peut-être pratique !  
 Pour installer le registre:
 ### 5.10.1. créer une résolution de nom spécifique:
-Repérer l'adresse ip du load balancer de traefik avec `cluster_get_traefik_lb_ip`  ici 172.31.255.49
+Repérer l'adresse ip du load balancer de traefik avec `cluster_get_traefik_lb_ip`  ici 172.31.255.49 et ajouter la section hosts dans la configuration de coredns:
 ```sh
 kubectl edit configmap coredns -n kube-system
 ```
@@ -553,10 +595,12 @@ data:
         loop
         reload
         loadbalance
+        ########## ajout de la propriété hosts
         hosts {
           172.31.255.49 docker-registry.local
           fallthrough
         }
+        ##########
     }
 kind: ConfigMap
 metadata:
