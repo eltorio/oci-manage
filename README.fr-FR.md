@@ -746,6 +746,8 @@ wg_meshconf_addpeer oci-nodeN oci-nodeN.example.com 51820
 ```sh
 wg_meshconf_showpeers
 ```
+<img width="874" alt="wg_meshconf" src="https://user-images.githubusercontent.com/6966689/233775674-08ad11b9-66fb-4f08-a6d7-1fd55549803f.png">
+
 ### 5.13.4. Déployer les nœuds
 ```sh
 wg_meshconf_deploy_config
