@@ -36,6 +36,7 @@
   - [4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#48-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
 - [5. Déploiement du cluster](#5-déploiement-du-cluster)
   - [5.1. Autorité de certification](#51-autorité-de-certification)
+    - [Déploiement de l'autorité de certification](#déploiement-de-lautorité-de-certification)
   - [5.2. Control-Plane](#52-control-plane)
   - [5.3. Workers](#53-workers)
   - [5.4. Effacement du cluster et résinstallation du cluster](#54-effacement-du-cluster-et-résinstallation-du-cluster)
@@ -372,7 +373,10 @@ nous avons créé 3 subca:
 - ~/pki/ca.crt et sa clef ~/pki/ca.key c'est l'autorité principale du cluster
 - ~/pki/front-proxy.crt et sa clef ~/pki/front-proxy.crt
 - ~/pki/etcd/ca.crt et sa clef ~/pki/etcd/ca.key
-
+### Déploiement de l'autorité de certification
+Il est important que tous les nœuds approuvent la nouvelle autorité de certification.  
+Convertissez le certificat en base64 `cluster_convert_pem_to_base64 ~/pki/ca.crt`
+Ajoutez le certificat codé en base64 dans la variable ROOT_CA puis déployez le `cluster_deploy_ca_cert`  
 ## 5.2. Control-Plane
 À l'aide de `oci-manage`  
 ```sh

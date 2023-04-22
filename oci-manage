@@ -1,5 +1,5 @@
 #!/bin/bash
-# 
+#
 # oci-manage -- A library providing functions for building and managing
 # a bare metal Kubernetes cluster on Oracle OCI
 #
@@ -2378,8 +2378,8 @@ function cluster_reset_remove_azure_dns_issuer() {
   kubectl delete ClusterIssuer/letsencrypt-azure
 }
 
-function cluster_init_azure_dns_issuer(){
-  cat << EOF | kubectl apply -f -
+function cluster_init_azure_dns_issuer() {
+  cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -2437,8 +2437,8 @@ spec:
 EOF
 }
 
-function oci-manage-copyright(){
-  cat << EOF
+function oci-manage-copyright() {
+  cat <<EOF
 oci-manage -- A library providing functions for building and managing
 a bare metal Kubernetes cluster on Oracle OCI
 
@@ -2460,6 +2460,15 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with oci-manage.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 EOF
+}
+
+function cluster_convert_pem_to_base64() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_convert_pem_to_base64 certificate_or_key"
+  else
+    PEM=$1
+    cat $PEM | base64 | tr -d '\n'
+  fi
 }
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
