@@ -1,179 +1,155 @@
 [![en-US](https://img.shields.io/badge/lang-en--us-red.svg)](https://github.com/eltorio/oci-manage/blob/master/README.md)
-[![fr-FR](https://img.shields.io/badge/lang-fr--fr-green.svg)](https://github.com/eltorio/oci-manage/blob/master/README-fr-FR.md)\
-**This file is written in French, the other languages are derived from a machine translation**
+[![fr-FR](https://img.shields.io/badge/lang-fr--fr-green.svg)](https://github.com/eltorio/oci-manage/blob/master/README-fr-FR.md)  
+**Ce fichier est écrit en français, les autres langues sont issues d'une traduction automatique**
+# 1. Laboratoire Oracle OCI-Kubernetes *bare metal*
 
-# 1. Oracle OCI-Kubernetes Lab *bare metal*
+**Ce projet n'a pas vocation a être réutilisé il s'agit en quelque sorte de notes bien structurées**  
+**Si il vous est utile tant mieux !**  
+**Si vous avez des corrections, des ajouts, des idées ils sont les bienvenus**  
 
-**This project is not intended to be reused it is somehow well structured notes**\
-**If it is useful to you, so much the better!**\
-**If you have corrections, additions, ideas they are welcome**
+- [1. Laboratoire Oracle OCI-Kubernetes *bare metal*](#1-laboratoire-oracle-oci-kubernetes-bare-metal)
+  - [1.1. Objectifs](#11-objectifs)
+  - [1.2. Pré-requis](#12-pré-requis)
+  - [1.3. Architecture](#13-architecture)
+    - [1.3.1. Structure des locations](#131-structure-des-locations)
+    - [1.3.2. Choix](#132-choix)
+    - [1.3.3. Création des instances *les nœuds*](#133-création-des-instances-les-nœuds)
+    - [1.3.4. Réseau](#134-réseau)
+      - [1.3.4.1. Cas multi-locations](#1341-cas-multi-locations)
+        - [1.3.4.1.1. Création des passerelles d'appairage locales](#13411-création-des-passerelles-dappairage-locales)
+          - [1.3.4.1.1.1. Requérant](#134111-requérant)
+          - [1.3.4.1.1.2. "Acceptant"](#134112-acceptant)
+- [2. Installation du control-plane](#2-installation-du-control-plane)
+  - [2.1. 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation](#21-1---connection-à-distance-sur-linstance-avec-la-clef-super-privée-et-création-de-lutilisateur-dexploitation)
+  - [2.2. 2 - login en tant qu'exploitant](#22-2---login-en-tant-quexploitant)
+  - [2.3. 3 - installation des logiciels](#23-3---installation-des-logiciels)
+  - [2.4. compilation de cri-dockerd](#24-compilation-de-cri-dockerd)
+  - [2.5. installation du client cilium](#25-installation-du-client-cilium)
+  - [2.6. creation manuelle du fichier `/etc/hosts` du control plane](#26-creation-manuelle-du-fichier-etchosts-du-control-plane)
+  - [2.7. definitions du firewall](#27-definitions-du-firewall)
+- [3. Installation des nœuds actifs (workers) depuis le control-plane](#3-installation-des-nœuds-actifs-workers-depuis-le-control-plane)
+- [4. oci-manage](#4-oci-manage)
+  - [4.1. déployer le fichier hosts](#41-déployer-le-fichier-hosts)
+  - [4.2. déployer le certificat racine](#42-déployer-le-certificat-racine)
+  - [4.3. déployer la configuration HAProxy](#43-déployer-la-configuration-haproxy)
+  - [4.4. mise à jour des paquets:](#44-mise-à-jour-des-paquets)
+  - [4.5. redémarrer le cluster](#45-redémarrer-le-cluster)
+  - [4.6. déployer un fichier](#46-déployer-un-fichier)
+  - [4.7. déployer le firewall](#47-déployer-le-firewall)
+  - [4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#48-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
+- [5. Déploiement du cluster](#5-déploiement-du-cluster)
+  - [5.1. Autorité de certification](#51-autorité-de-certification)
+    - [5.1.1. Déploiement de l'autorité de certification](#511-déploiement-de-lautorité-de-certification)
+  - [5.2. Control-Plane](#52-control-plane)
+  - [5.3. Workers](#53-workers)
+  - [5.4. Effacement du cluster et résinstallation du cluster](#54-effacement-du-cluster-et-résinstallation-du-cluster)
+    - [5.4.1. Effacement](#541-effacement)
+    - [5.4.2. Réinstallation](#542-réinstallation)
+  - [5.5. Stockage persistant](#55-stockage-persistant)
+    - [5.5.1. Longhorn](#551-longhorn)
+    - [5.5.2. OpenEBS/jiva](#552-openebsjiva)
+  - [5.6. Gestionnaire de certificat](#56-gestionnaire-de-certificat)
+  - [5.7. Ouverture sur le monde extérieur](#57-ouverture-sur-le-monde-extérieur)
+  - [5.8. Accès aux tableaux de bord](#58-accès-aux-tableaux-de-bord)
+  - [5.9. Grafana](#59-grafana)
+  - [5.10. Registre local de container](#510-registre-local-de-container)
+    - [5.10.1. créer une résolution de nom spécifique:](#5101-créer-une-résolution-de-nom-spécifique)
+    - [5.10.2. Pour ajouter une image:](#5102-pour-ajouter-une-image)
+    - [5.10.3. Pour désinstaller le registre local:](#5103-pour-désinstaller-le-registre-local)
+    - [5.10.4. Interface utilisateur](#5104-interface-utilisateur)
+  - [5.11. Letsencrypt](#511-letsencrypt)
+    - [5.11.1. Oracle OCI DNS01](#5111-oracle-oci-dns01)
+      - [5.11.1.1. Installation](#51111-installation)
+      - [5.11.1.2. Utilisation](#51112-utilisation)
+      - [5.11.1.3. Désinstallation](#51113-désinstallation)
+    - [5.11.2. Azure DNS](#5112-azure-dns)
+      - [5.11.2.1. Installation](#51121-installation)
+      - [5.11.2.2. Utilisation](#51122-utilisation)
+      - [5.11.2.3. Désinstallation](#51123-désinstallation)
+  - [5.12. Bird sur le control-plane](#512-bird-sur-le-control-plane)
+  - [Fichier `README.md` multilingue](#fichier-readmemd-multilingue)
 
-*   [1. Oracle OCI-Kubernetes Lab *bare metal*](#1-laboratoire-oracle-oci-kubernetes-bare-metal)
-    *   [1.1. Objectives](#11-objectifs)
-    *   [1.2. Prerequisites](#12-pré-requis)
-    *   [1.3. Architecture](#13-architecture)
-        *   [1.3.1. Structure of rentals](#131-structure-des-locations)
-        *   [1.3.2. Choice](#132-choix)
-        *   [1.3.3. Creating instances *Nodes*](#133-création-des-instances-les-nœuds)
-        *   [1.3.4. Network](#134-réseau)
-            *   [1.3.4.1. Multi-tenancy cases](#1341-cas-multi-locations)
-                *   [1.3.4.1.1. Creating local peering gateways](#13411-création-des-passerelles-dappairage-locales)
-                    *   [1.3.4.1.1.1. Applicant](#134111-requérant)
-                    *   [1.3.4.1.1.2. "Accepting"](#134112-acceptant)
-*   [2. Installation of the control-plane](#2-installation-du-control-plane)
-    *   [2.1. 1 - Remote connection on the instance (with the super-private key) and creation of the operating user](#21-1---connection-à-distance-sur-linstance-avec-la-clef-super-privée-et-création-de-lutilisateur-dexploitation)
-    *   [2.2. 2 - Login as operator](#22-2---login-en-tant-quexploitant)
-    *   [2.3. 3 - Software installation](#23-3---installation-des-logiciels)
-    *   [2.4. Compiling CRI-Dockerd](#24-compilation-de-cri-dockerd)
-    *   [2.5. Installing the Cilium Client](#25-installation-du-client-cilium)
-    *   [2.6. Manual file creation `/etc/hosts` of the control plane](#26-creation-manuelle-du-fichier-etchosts-du-control-plane)
-    *   [2.7. Firewall definitions](#27-definitions-du-firewall)
-*   [3. Installation of active nodes (workers) from the control-plane](#3-installation-des-nœuds-actifs-workers-depuis-le-control-plane)
-*   [4. oci-manage](#4-oci-manage)
-    *   [4.1. Deploy the hosts file](#41-déployer-le-fichier-hosts)
-    *   [4.2. Deploy the root certificate](#42-déployer-le-certificat-racine)
-    *   [4.3. Deploy the HAProxy configuration](#43-déployer-la-configuration-haproxy)
-    *   [4.4. Package Update:](#44-mise-à-jour-des-paquets)
-    *   [4.5. Restart the cluster](#45-redémarrer-le-cluster)
-    *   [4.6. Deploy a file](#46-déployer-un-fichier)
-    *   [4.7. Deploy the firewall](#47-déployer-le-firewall)
-    *   [4.8. (Re)create the local interface files *e.g. in case of routing change*](#48-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
-*   [5. Cluster deployment](#5-déploiement-du-cluster)
-    *   [5.1. Certification Authority](#51-autorité-de-certification)
-        *   [5.1.1. Deploying the CA](#511-déploiement-de-lautorité-de-certification)
-    *   [5.2. Control-Plane](#52-control-plane)
-    *   [5.3. Workers](#53-workers)
-    *   [5.4. Clearing the cluster and reinstalling the cluster](#54-effacement-du-cluster-et-résinstallation-du-cluster)
-        *   [5.4.1. Erasure](#541-effacement)
-        *   [5.4.2. Resettlement](#542-réinstallation)
-    *   [5.5. Persistent storage](#55-stockage-persistant)
-        *   [5.5.1. Longhorn](#551-longhorn)
-        *   [5.5.2. OpenEBS/jiva](#552-openebsjiva)
-    *   [5.6. Certificate Manager](#56-gestionnaire-de-certificat)
-    *   [5.7. Openness to the outside world](#57-ouverture-sur-le-monde-extérieur)
-    *   [5.8. Access to dashboards](#58-accès-aux-tableaux-de-bord)
-    *   [5.9. Grafana](#59-grafana)
-    *   [5.10. Local container registry](#510-registre-local-de-container)
-        *   [5.10.1. Create a specific name resolution:](#5101-créer-une-résolution-de-nom-spécifique)
-        *   [5.10.2. To add an image:](#5102-pour-ajouter-une-image)
-        *   [5.10.3. To uninstall the local registry:](#5103-pour-désinstaller-le-registre-local)
-        *   [5.10.4. User Interface](#5104-interface-utilisateur)
-    *   [5.11. Letsencrypt](#511-letsencrypt)
-        *   [5.11.1. Oracle OCI DNS01](#5111-oracle-oci-dns01)
-            *   [5.11.1.1. Installation](#51111-installation)
-            *   [5.11.1.2. Use](#51112-utilisation)
-            *   [5.11.1.3. Uninstallation](#51113-désinstallation)
-        *   [5.11.2. Azure DNS](#5112-azure-dns)
-            *   [5.11.2.1. Installation](#51121-installation)
-            *   [5.11.2.2. Use](#51122-utilisation)
-            *   [5.11.2.3. Uninstalling](#51123-désinstallation)
-    *   [5.12. Bird on the control-plane](#512-bird-sur-le-control-plane)
-    *   [File `README.md` multilingual](#fichier-readmemd-multilingue)
-
-## 1.1. Objectives
-
-Create a bare-metal mockup of a Kubernetes cluster using Oracle Cloud Infrastructure "always free" virtual machines.\
-Try to automate deployment tasks as much as possible without using specific tools.\
-All `snippets` of creation and automation is collected in the script `oci-manage`
-
-## 1.2. Prerequisites
-
-*   One free Oracle OCI account per person in the same region
-*   A "super private" SSH key
-*   A root CA to generate all certificates
-*   a lot of time!
+## 1.1. Objectifs
+Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
+Essayer d'automatiser au maximum les tâches de déploiement sans utiliser d'outils spécifiques.  
+L'ensemble des `snippets` de création et d'automatisation est rassemblé dans le script `oci-manage`
+## 1.2. Pré-requis
+- un compte oracle OCI gratuit par personne dans la même région
+- une clef ssh "super privée"
+- une autorité de certification racine pour générer tous les certificats
+- beaucoup de temps !
 
 ## 1.3. Architecture
-
-Each member has his own "location", he has deployed one, two, three or four VMs in his tenancy.
-
-### 1.3.1. Structure of rentals
-
-*   using the same OIC region
-*   a child bucket of the root bucket containing all objects
-*   a virtual private network with a CIDR of type 10.n.0.0/16
-*   Two subnets:
-    *   Audience: CIDR 10.n.0.0/24
-    *   private: CIDR 10.n.1.0/24
-*   n-1 LPG gateways (local peering gateways) with names of other tenancies
-*   a site-to-site VPN between the rental and the lab's Cisco router with BGP
-
-### 1.3.2. Choice
-
-| Element | Choice |
+Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre VM dans sa location.  
+### 1.3.1. Structure des locations
+- utilisation de la même région OCI
+- un compartiment enfant du compartiment racine contenant tous les objets
+- un réseau privé virtuel avec un CIDR du type 10.n.0.0/16
+- deux sous-réseaux:
+  - public: CIDR 10.n.0.0/24
+  - privé: CIDR 10.n.1.0/24
+- n-1 passerelles LPG (local peering gateways) avec les noms des autres locations
+- un VPN site à site entre la location et le routeur Cisco du labo avec BGP
+### 1.3.2. Choix
+| Élément    | Choix              |
 | :--------- | :----------------- |
-| Cluster | Kubernetes v1.27.1 |
-| CNI | Cilium 1.13.2 |
-| routing | PMO |
-| Connections | VXLAN |
-| VPN | IKEv2 |
-
-### 1.3.3. Creating instances *Nodes*
-
-Each node is either:
-
-*   **a VM.Standard.A1.Flex instance (arm64)**
-
+| Cluster    | Kubernetes v1.27.1 |
+| CNI        | Cilium 1.13.2      |
+| routage    | BGP                |
+| Connexions | VXLAN              |
+| VPN        | IKEv2              |
+ 
+### 1.3.3. Création des instances *les nœuds*
+Chaque nœud est soit:
+- **une instance VM.Standard.A1.Flex (arm64)**
 <img width="1223" alt="arm64" src="https://user-images.githubusercontent.com/6966689/230726371-91a67bb4-8830-43df-b36e-7b97596246cb.png">
 
-*   **a VM.Standard.E2.1.Micro instance (amd64)** .
-
+- **une instance VM.Standard.E2.1.Micro (amd64)** .   
  <img width="1190" alt="amd64" src="https://user-images.githubusercontent.com/6966689/230726465-cbab9f60-0a1a-4ce9-ab37-300301f6af6a.png">
 
-Each instance is deployed with the minimum Ubuntu 22.04 image. What for? Because it's the OS we know best.
-At the time of deployment of each virtual machine, we put an SSH key that we call the "super private" key.  It serves us to initiate the deployment.
+Chaque instance est déployée avec l'image Ubuntu 22.04 minimale. Pourquoi? Parce que c'est l'OS que nous connaissons le mieux. 
+Au moment du déploiement de chaque machine virtuelle, nous avons mis une clef SSH que nous appelons la clef "super privée".  Elle nous sert à initier le déploiement.
+### 1.3.4. Réseau
+- Création des règles de sécurité
+  - Réseau public
+    - pas de changement
+  - Réseau privé
+    - on autorise tout (pour le labo)
+      - 0.0.0.0/0 => tous les protocoles
+      - ::/0 => tous les protocoles  
+  
+#### 1.3.4.1. Cas multi-locations
+Si les nœuds sont dans des locations différentes il faut relier les réseaux privés de chaque location:  
 
-### 1.3.4. Network
-
-*   Creating security rules
-    *   Public network
-        *   No change
-    *   Private network
-        *   we authorize everything (for the lab)
-            *   0.0.0.0/0 => all protocols
-            *   ::/0 => all protocols
-
-#### 1.3.4.1. Multi-tenancy cases
-
-If the nodes are in different locations it is necessary to connect the private networks of each tenancy:
-
-##### 1.3.4.1.1. Creating local peering gateways
-
-*   Create policies
-    *   They must be created at the root bucket level
-    *   Strategies of the applicant and the "acceptors":
-
-###### 1.3.4.1.1.1. Applicant
-
+##### 1.3.4.1.1. Création des passerelles d'appairage locales  
+- Créer des stratégies  
+  - Elles doivent être créées au niveau du compartiment racine  
+  - Stratégies du requérant et des "acceptants":  
+  
+###### 1.3.4.1.1.1. Requérant
 ```sql
 Allow group Administrators to manage local-peering-from in compartment <requestor-compartment>
 Endorse group Administrators to manage local-peering-to in any-tenancy
 Endorse group Administrators to associate local-peering-gateways in compartment <requestor-compartment> with local-peering-gateways in any-tenancy
 ```
-
-###### 1.3.4.1.1.2. "Accepting"
-
+###### 1.3.4.1.1.2. "Acceptant"
 ```sql
 Define tenancy Requestor as <requestor_tenancy_OCID>
 Define group Administrators as <RequestorGrp_OCID>
 Admit group Administrators of tenancy Requestor to manage local-peering-to in compartment <acceptor-compartment>
 Admit group Administrators of tenancy Requestor to associate local-peering-gateways in tenancy Requestor with local-peering-gateways in compartment <acceptor-compartment>
 ```
-
-*   Binding local peering gateways
-
-    *   in the accepting OCI/VCN console copy the ocid of the "accepting" gateway.
-
-    <img width="1845" alt="acceptor2" src="https://user-images.githubusercontent.com/6966689/230727586-09d0a2b4-f3d5-4f96-8b3a-dfd3f1a27988.png">
-
-    *   in the applicant's OCI/PNT console to the right of the corresponding gateway you will find in the menu "Establish a pageantry connection. It is appropriate to stick the previous ocid ... If there is a permission problem it probably comes from poorly defined policies. See https://docs.oracle.com/fr-fr/iaas/Content/Network/Tasks/localVCNpeering.htm#Step3
-
+- Liaison des passerelles d'appairage locales (local peering gateways)
+  - dans la console OCI/VCN de l'acceptant copier l'ocid de la passerelle "acceptante". 
+  <img width="1845" alt="acceptor2" src="https://user-images.githubusercontent.com/6966689/230727586-09d0a2b4-f3d5-4f96-8b3a-dfd3f1a27988.png">
+  
+  - dans la console OCI/VCN du requérant à droite de la passerelle correspondante on trouve dans le menu "Établir une connexion d'apparage. Il convient d'y coller l'ocid précédent… Si il y a un problème d'autorisation il vient probablement des stratégies mal définies. Voir https://docs.oracle.com/fr-fr/iaas/Content/Network/Tasks/localVCNpeering.htm#Step3  
 <img width="1847" alt="requestror" src="https://user-images.githubusercontent.com/6966689/230727600-2de47379-553d-43bf-84f8-2629f176e81e.png">
 
-# 2. Installation of the control-plane
 
-## 2.1. 1 - Remote connection on the instance (with the super-private key) and creation of the operating user
 
+# 2. Installation du control-plane
+## 2.1. 1 - connection à distance sur l'instance (avec la clef super-privée) et création de l'utilisateur d'exploitation
 ```sh
 ssh -i clef_super_privée ubuntu@instance_ip
 USERNAME=adminuser
@@ -188,9 +164,7 @@ sudo cp /home/ubuntu/.ssh/authorized_keys /home/$USERNAME/.ssh/
 sudo -u "$USERNAME" sh -c "cd chmod go-rwx .ssh"
 exit
 ```
-
-## 2.2. 2 - Login as operator
-
+## 2.2. 2 - login en tant qu'exploitant
 ```sh
 ssh -i clef_super_privée adminuser@instance_ip
 # définition du nom d'hôte
@@ -203,9 +177,7 @@ sudo systemctl restart ssh
 #modification du service docker
 sudo sed -i.bak '/^\[Service\].*/a MountFlags=shared' /lib/systemd/system/docker.service
 ```
-
-## 2.3. 3 - Software installation
-
+## 2.3. 3 - installation des logiciels
 ```sh
 # installation du repo officiel Docker
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
@@ -216,7 +188,6 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/go
 # mise à jour de l'image de base Ubuntu 22.04 LTS (pour une instation propre)
 sudo apt-get update && sudo apt-get dist-upgrade && sudo reboot
 ```
-
 ```sh
 # installation
 sudo apt-get update && sudo apt-get install vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin git golang-go iputils-ping cron kubeadm haproxy kubelet kubectl kubernetes-cni jq
@@ -224,11 +195,8 @@ sudo apt-get update && sudo apt-get install vim wireguard iputils-ping docker-ce
 sudo usermod -aG docker $USER
 sudo reboot
 ```
-
-## 2.4. Compiling CRI-Dockerd
-
-*Be careful if the cluster is multi-architecture it is necessary to have a version of the executable for each architecture*
-
+## 2.4. compilation de cri-dockerd  
+*Attention si le cluster est multi-architecture il faut avoir une version de l'executable pour chaque architecture*  
 ```sh
 git clone https://github.com/Mirantis/cri-dockerd.git
 cd cri-dockerd
@@ -239,19 +207,15 @@ sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
 sudo cp -a packaging/systemd/* /etc/systemd/system
 sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
 ```
-
-## 2.5. Installing the Cilium Client
-
+## 2.5. installation du client cilium
 ```sh
 cluster_init_get_cilium_cli
 ```
+Pour vérifier que tout fonctionne `cilium status`.  
+<img width="1083" alt="cilium" src="https://user-images.githubusercontent.com/6966689/230726758-95a7b598-f8a9-4ec1-a597-0a2f069868a3.png">
 
-To verify that everything is working `cilium status`.\ <img width="1083" alt="cilium" src="https://user-images.githubusercontent.com/6966689/230726758-95a7b598-f8a9-4ec1-a597-0a2f069868a3.png">
-
-## 2.6. Manual file creation `/etc/hosts` of the control plane
-
-The host file of the plane control allows static name resolution.
-
+## 2.6. creation manuelle du fichier `/etc/hosts` du control plane
+Le fichier host du contrôle plane permet une résolution de nom statique.  
 ```hosts
 10.0.1.23       node1       node1.private.tenancy1.oraclevcn.com
 10.0.0.63                   node1.public.tenancy1.oraclevcn.com
@@ -260,11 +224,8 @@ The host file of the plane control allows static name resolution.
 10.1.0.201      node2       node2.private.tenancy2.oraclevcn.com
 10.1.1.186                  node2.public.tenancy2.oraclevcn.com
 ```
-
-## 2.7. Firewall definitions
-
-in /etc/iptables/rules.v4 was added under SSH port permission (22):
-
+## 2.7. definitions du firewall
+dans /etc/iptables/rules.v4 a été ajouté sous l'autorisation du port SSH (22):  
 ```sh
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT -m comment --comment "WEB secure incoming"
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 2379:2380 -j ACCEPT -m comment --comment "K8S etcd access"
@@ -277,16 +238,13 @@ in /etc/iptables/rules.v4 was added under SSH port permission (22):
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 10259 -j ACCEPT
 -A INPUT -p udp -m state --state NEW -m udp --dport 51820 -j ACCEPT -m comment --comment "Wireguard UDP port"
 ```
-
-# 3. Installation of active nodes (workers) from the control-plane
-
-**This can only be done if private networks are interconnected.**\
-Take a look at the script `oci-manage`\
-It contains all the automation functions, they are undocumented because we lack courage!\
-At the beginning of the file there are a number of variables...\
-Copy them to a `./oci-manage-config.sh` and edit them.\
-To activate the functions simply do `. ./oci-manage`
-
+# 3. Installation des nœuds actifs (workers) depuis le control-plane
+**Cela ne peut être fait que si les réseaux privés sont interconnectés**  
+Jettez un coup d'œil au script `oci-manage`  
+Il contient toutes les fonctionsd'automatisations, elles sont non documentées car on manque de courage !  
+Au début du fichier il y a un certain nombre de variables…  
+Copiez les dans un fichiers `./oci-manage-config.sh` et éditez les.  
+Pour activer les fonctions il faut simplement faire `. ./oci-manage`
 ```sh
 EXPLOITANT=adminuser
 PASS=unvraimotdepasse
@@ -310,17 +268,14 @@ init_install_cri_docker $NODE_PUBLIC_IP
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
 init_create_private_interface $NODE_PUBLIC_IP $PRIVATE_MAC $PRIVATE_IP
 ```
-
 # 4. oci-manage
-
-When all nodes are pre-installed\
-With `oci-manage` We can then perform "global" tasks\
-It is a set of functions *Bash* that we use to manage the cluster.\
-Some are simple *snippets* others are a little more advanced.\
-Functions *Useful* are listed in `cluster_help`\
-To see what is in a *snippet* just extract it with `type xxxxxx`\
-Example with the creation of the control-plane
-
+Quand tous les nœuds sont pré-installés  
+Avec `oci-manage` on peut alors effectuer des tâches "globales"  
+Il s'agit d'un ensemble de fonctions *bash* que nous utilisons pour gérer le cluster.  
+Certaines sont de simples *snippets* d'autres sont un peu plus avancées.  
+Les fonctions *utiles* sont listées dans `cluster_help`  
+Pour voir ce que contient un *snippet* il suffit de l'extraire avec `type xxxxxx`  
+Exemple avec la création du control-plane  
 ```sh
 type cluster_init_create_control_plane
 cluster_init_create_control_plane is a function
@@ -348,54 +303,38 @@ cluster_init_create_control_plane ()
     cluster_init_create_ip_pool
 }
 ```
-
-Note that a number of variables are used. They are defined in a file `oci-manage-config.sh` and the default values are at the top of the file `oci-manage`\
-The file path `oci-manage-config.sh` is hard-coded at the end of the default values of `oci-manage`
-
+On remarque qu'un certain nombre de variables sont utilisées. Elles sont définies dans un fichier `oci-manage-config.sh` et les valeurs par défaut sont en tête du fichier `oci-manage`  
+Le chemin du fichier `oci-manage-config.sh` est codé en dur à la fin des valeurs par défaut de `oci-manage`  
 ```sh
 # pour activer l'ensemble des fonctions de oci-manage
 . ~/oci-manage
 ```
+À chaque ajout de nœud il faut mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
+À chaque changement de variable il faut appeler de nouveau `. ~/oci-manage`  
 
-Each time a node is added, the CLUSTER_MEMBERS variable of the configuration file must be updated.\
-At each change of variable you must call again `. ~/oci-manage`
-
-## 4.1. Deploy the hosts file
-
-*   Manually create the file `sudo vi /etc/hosts` of the control-plane and then deploy it.
-
+## 4.1. déployer le fichier hosts
+- Créer manuellement le fichier `sudo vi /etc/hosts` du control-plane puis déployez le.  
 ```sh
 cluster_deploy_hosts
 ```
-
-## 4.2. Deploy the root certificate
-
-the one in the variable ROOT_CA
-
+## 4.2. déployer le certificat racine
+celui dans la variable ROOT_CA
 ```sh
 cluster_deploy_ca_cert
 ```
-
-## 4.3. Deploy the HAProxy configuration
-
+## 4.3. déployer la configuration HAProxy
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
-
-## 4.4. Package Update:
-
+## 4.4. mise à jour des paquets:  
 ```sh
 cluster_apt_dist_upgrade
 ```
-
-## 4.5. Restart the cluster
-
+## 4.5. redémarrer le cluster
 ```sh
 cluster_reboot
 ```
-
-## 4.6. Deploy a file
-
+## 4.6. déployer un fichier 
 ```sh
 #en tant que root
 cluster_copy_file_as_root /etc/hosts /etc/hosts
@@ -403,35 +342,24 @@ cluster_copy_file_as_root /etc/hosts /etc/hosts
 cluster_copy_file_as_current_user ~/oci-manage ~/oci-manage
 cluster_copy_file_as_current_user ~/oci-manage-config.sh ~/oci-manage-config.sh
 ```
-
-## 4.7. Deploy the firewall
-
+## 4.7. déployer le firewall
 ```sh
 cluster_copy_file_as_root /etc/iptables/rules.v4 /etc/iptables/rules.v4
 cluster_run_on_all_members_as_root "iptables-restore -t /etc/iptables/rules.v4"
 ```
-
-## 4.8. (Re)create the local interface files *e.g. in case of routing change*
-
+## 4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
 ```sh
 cluster_recreate_private_interface
 cluster_recreate_master_private_interface
 ```
-
-# 5. Cluster deployment
-
-Normally all machines are ready, we can check that they can communicate with each other:
-
+# 5. Déploiement du cluster
+Normalement toutes les machines sont prêtes, on peut vérifier qu'elles peuvent communiquer entre elles:
 ```sh
 cluster_ping_host_from_members $CONTROL_PLANE_LOCAL
 ```
-
-Is it all good? We can get down to business.
-
-## 5.1. Certification Authority
-
-to create a root certification authority (CA) and a local authority (Sub CA) there are plenty of tutorials on the Internet. Wholesale:
-
+C'est tout bon ? On peut passer aux choses sérieuses.
+## 5.1. Autorité de certification
+pour créer une autorité de certification racine (CA) et une autorité locale (Sub CA) il y a plein de tutos sur Internet. En gros:  
 ```sh
 mkdir ~/certs
 cd ~/certs
@@ -444,38 +372,28 @@ openssl genrsa -out mySubCA.key 4096
 openssl req -new -key mySubCA.key > mySubCA.csr
 openssl x509 -req -in mySubCA.csr -out mySubCA.pem -sha256 -extensions v3_ca --CA myCA.pem -days 3650 -CAkey myCA.key -CAcreateserial -CAserial myCA.srl
 cat mySubCA.pem myCA.pem > mySubCA-cert-chain.pem
-```
-
-We have created 3 subca:
-
-*   \~/pki/ca.crt and its key ~/pki/ca.key it is the main authority of the cluster
-*   \~/pki/front-proxy.crt and its key ~/pki/front-proxy.crt
-*   \~/pki/etcd/ca.crt and its key ~/pki/etcd/ca.key
-
-### 5.1.1. Deploying the CA
-
-It is important that all nodes trust the new CA.\
-Convert the certificate to base64 with `cluster_convert_pem_to_base64 ~/pki/ca.crt`
-Add the base64-encoded certificate to the ROOT_CA variable and then deploy it with `cluster_deploy_ca_cert`
-
+``` 
+nous avons créé 3 subca:
+- ~/pki/ca.crt et sa clef ~/pki/ca.key c'est l'autorité principale du cluster
+- ~/pki/front-proxy.crt et sa clef ~/pki/front-proxy.crt
+- ~/pki/etcd/ca.crt et sa clef ~/pki/etcd/ca.key
+### 5.1.1. Déploiement de l'autorité de certification
+Il est important que tous les nœuds approuvent la nouvelle autorité de certification.  
+Convertissez le certificat en base64 avec `cluster_convert_pem_to_base64 ~/pki/ca.crt`
+Ajoutez le certificat codé en base64 dans la variable ROOT_CA puis déployez le avec `cluster_deploy_ca_cert`  
 ## 5.2. Control-Plane
-
-Using `oci-manage`
-
+À l'aide de `oci-manage`  
 ```sh
 cluster_init_create_control_plane
 ```
 
 ## 5.3. Workers
-
 ```sh
 cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
 # petit bug avec le dashboard si il répond toujours 404 il faut le recréer…
 # kubectl delete -n kube-traefik ingressroute.traefik.containo.us/traefik-dashboard ; cluster_init_install_traefik_ingressroute
 ```
-
-after a few minutes, depending on the number and performance of VMs, the cluster will be operational! We can verify it...
-
+au bout de quelques minutes, selon le nombre et la performance des VM le cluster sera opérationnel ! On peut le vérifier…  
 ```sh
 kubectl get nodes -o wide
 NAME                                         STATUS   ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION       CONTAINER-RUNTIME
@@ -488,9 +406,7 @@ node6.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.27
 node7.private.tenancy5.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.4.1.117     <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
 node8.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.0.253.138   <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
 ```
-
-And all system pods work:
-
+Et tous les pods systèmes fonctionnent:  
 ```sh
 3hkubectl get pods -A
 NAMESPACE              NAME                                                                 READY   STATUS    RESTARTS       AGE
@@ -516,13 +432,9 @@ kube-traefik           traefik-d65c6d5cd-d8w4j                                  
 kubernetes-dashboard   dashboard-metrics-scraper-7bc864c59-d9dqf                            1/1     Running   1 (28m ago)    3h
 kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                                1/1     Running   1 (29m ago)    3h
 ```
-
-## 5.4. Clearing the cluster and reinstalling the cluster
-
-We are in a lab so we have to do tests it is very simple to completely erase the cluster and put it back in the initial configuration. Two steps are required:
-
-### 5.4.1. Erasure
-
+## 5.4. Effacement du cluster et résinstallation du cluster  
+On est dans un labo alors on doit faire des essais il est très simple d'effacer intégralement le cluster et de le remettre dans la configuration initiale. Deux étapes sont nécessaires:  
+### 5.4.1. Effacement 
 ```sh
 cluster_reset_members
 # eventuellement une fois les membres disponibles
@@ -530,12 +442,9 @@ cluster_reset_storage
 # control_plane
 cluster_reset_control_plane
 ```
-
-### 5.4.2. Resettlement
-
-Remember to choose the persistence backend which is openEbs by default.\
-to use Longhorn you have to change the variable: `STORAGE_BACKEND="longhorn"`
-
+### 5.4.2. Réinstallation
+Pensez à choisir le backend de persistence qui est openEbs par défaut.  
+pour utiliser Longhorn il faut changer la variable: `STORAGE_BACKEND="longhorn"`
 ```sh
 rm -f ~/.kube/config
 sudo rm -f /root/.kube/config
@@ -545,37 +454,28 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 cluster_init_create_post_install_grafana
 ```
 
-## 5.5. Persistent storage
-
-Several solutions exist.
-
+## 5.5. Stockage persistant 
+Plusieurs solutions existent.  
 ### 5.5.1. Longhorn
-
-If your nodes are powerful enough [Longhorn](https://longhorn.io/) works wonderfully. It only actually works properly if all nodes have at least 4GB of RAM.\
-Otherwise nodes with little memory collapse and the cluster suffers.\
-To activate Longhorn:
-
+Si vos nœuds sont suffisament puissants [Longhorn](https://longhorn.io/) fonctionne à merveille. Il ne fonctionne réellement correctement que si tous les nœuds ont au moins 4Go de RAM.  
+Sinon les nœuds avec peu de mémoire s'effondrent et le cluster souffre.  
+Pour activer Longhorn:  
 ```sh
 cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
 ```
-
 ### 5.5.2. OpenEBS/jiva
-
-It's a lighter solution but without Longhorn's beautiful UI.\
-It is necessary to mount the storages in /storage on the members with block storage.
-
+C'est une solution plus légère mais sans la belle UI de Longhorn.  
+Il est nécessaire de monter les stockages dans /storage sur les membres disposants de stockage de blocs.  
 ```sh
 cluster_init_install_openebs
 ```
 
-## 5.6. Certificate Manager
-
-Since we have our own certificate authority, cert-manager is automatically deployed during the post-installation phase.\
-This allows certificates to be created automatically.\
-This is very useful for generating the certificates of the Ingress -the incoming https routes in the cluster-\
-To automatically create a certificate for the monhote.example.org host that will be stored in the myhost-cert secret:
-
+## 5.6. Gestionnaire de certificat
+Vu que nous avons notre propre autorité de certification, cert-manager est automatiquement déployé pendant la phase de post-installation.  
+Cela permet de créer automatiquement des certificats.  
+Cela est très utile pour générer les certificats des Ingress -les routes https entrantes dans le cluster-  
+Pour créer automatiquement un certificat pour l'hôte monhote.example.org qui sera stocké dans le secret monhote-cert:
 ```yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -595,9 +495,7 @@ spec:
     name: company-ca-issuer
     kind: ClusterIssuer
 ```
-
-To have the Ingress automatically create its certificate to access the myservice and expose it as a https://monhote.example.com/:
-
+Pour que la l'Ingress crée automatiquement son certificat pour accèder au service monservice et l'exposer en tant que https://monhote.example.com/:
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -625,82 +523,63 @@ spec:
   - hosts: [monhote.example.org]
     secretName: monhote-cert
 ```
-
-## 5.7. Openness to the outside world
-
-By default all nodes host a proxy [Haproxy](https://www.haproxy.org/). It relays port 443 of the Traefik service on local interfaces. This makes it possible to have a basic load balancer open to the outside.\
-To modify the configuration you must edit the file `/etc/haproxy/haproxy.cfg` control-plane and then deploy it to the entire cluster:
-
+## 5.7. Ouverture sur le monde extérieur
+Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relaie le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
+Pour modifier la configuration il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
+la configuration d'un port est simple:
+```
+frontend traefik
+        bind :443
+        default_backend k8s-traefik 
 
-Configuring a port is simple:
+backend k8s-traefik
+        server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
+```
+- `traefik.kube-traefik.svc.cluster.local`
+  - `k8s-traefik` est une simple étiquette
+  - `traefik` est le nom dns interne d'un service 
+  - `kube-traefik` son espace de nom
+  - `443` est le port tcp.
 
-    frontend traefik
-            bind :443
-            default_backend k8s-traefik 
-
-    backend k8s-traefik
-            server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
-
-*   `traefik.kube-traefik.svc.cluster.local`
-    *   `k8s-traefik` is a simple label
-    *   `traefik` is the internal DNS name of a service
-    *   `kube-traefik` its namespace
-    *   `443` is the TCP port.
-
-## 5.8. Access to dashboards
-
-On your DNS point `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` and `DASHBOARD_DNS_NAMES` to the IP addresses of the nodes you open on the outside (only one is sufficient).
-Note that `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` and `DASHBOARD_DNS_NAMES` of the file `oci-manage-config.sh` are plural. Indeed these are bash arrays that allow to define several DNS name so for example we can point `dashboard.domaine.prive` to the IP address visible from inside the lab and `dashboard.domaine.com` to the IP address visible from the Internet. Traefik will accept both names. The SSL certificate will be valid for both names.\
-Your cluster's dashboards can be accessed using these names:
-
-*   `https://TRAEFIK_DASHBOARD_DNS_NAMES/dashboard/` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
-*   `https://HUBBLE_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
-*   `https://DASHBOARD_DNS_NAMES` (login using the token obtained with dashboard_get_token)
-*   `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
-
+## 5.8. Accès aux tableaux de bord
+Sur votre DNS faites pointer `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` vers les adresses IP des nœuds que vous ouvrez sur l'extérieur (un seul est suffisant).
+Notez que `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` du fichier `oci-manage-config.sh` sont au pluriel. En effet il s'agit de tableaux bash qui permettent de définir plusieurs nom DNS ainsi par exemple on peut faire pointer `dashboard.domaine.prive` vers l'adresse IP visible depuis l'intérieur du labo et `dashboard.domaine.com` vers l'adresse IP visible depuis Internet. Traefik acceptera les deux noms. Le certificat SSL sera valide pour les deux noms.  
+Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
+- `https://TRAEFIK_DASHBOARD_DNS_NAMES/dashboard/` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
+- `https://HUBBLE_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
+- `https://DASHBOARD_DNS_NAMES` (login à l'aide du jeton obtenu avec dashboard_get_token)
+- `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
 ## 5.9. Grafana
-
-If you need you can automatically link your lab cluster to a free instance [Grafanan](https://grafana.com/)\
-Adjust values
-
+Si vous besoin vous pouvez automatiquement relier votre cluster laboratoire à une instance gratuite [Grafanan](https://grafana.com/)  
+Ajustez les valeurs  
 ```sh
 GRAFANA_PROMETHEUS_USERNAME="123456"
 GRAFANA_PROMETHEUS_PASSWORD="MTFhM2UyMjkwODQzNDliYzI1ZDk3ZTI5MzkzY2VkMWQgIC0K"
 GRAFANA_LOGS_USERNAME="654321"
 GRAFANA_LOGS_PASSWORD="MTFhM2UyMjkwODQzNDliYzI1ZDk3ZTI5MzkzY2VkMWQgIC0K"
 ```
-
-the values are available in the Home/Administration/Data sources section of Grafana.
-
+les valeurs sont disponibles dans la section Home/Administration/Data sources de Grafana.  
 ```sh
 cluster_init_create_post_install_grafana
 ```
-
 <img width="1916" alt="grafana" src="https://user-images.githubusercontent.com/6966689/230726015-9a90ca9c-e01d-42d0-b693-03daa665b5c0.png">
 
-To clear it
-
+Pour l'effacer
 ```sh
 kubectl 
 ```
-
-## 5.10. Local container registry
-
-The CI/CD is good, but in development it can be long.\
-A local registry can be handy!\
-To install the registry:
-
-### 5.10.1. Create a specific name resolution:
-
-Find the IP address of the traefik load balancer with `cluster_get_traefik_lb_ip`  Here 172.31.255.49 and add the hosts section in the coredns configuration:
-
+## 5.10. Registre local de container
+Le CI/CD c'est bien, mais en développement ça peut être long.  
+Un registre local peut-être pratique !  
+Pour installer le registre:
+### 5.10.1. créer une résolution de nom spécifique:
+Repérer l'adresse ip du load balancer de traefik avec `cluster_get_traefik_lb_ip`  ici 172.31.255.49 et ajouter la section hosts dans la configuration de coredns:
 ```sh
 kubectl edit configmap coredns -n kube-system
 ```
-
 ```yaml
 apiVersion: v1
 data:
@@ -736,38 +615,29 @@ metadata:
   creationTimestamp: "2023-04-15T12:59:35Z"
   name: coredns
 ```
-
-    dev_install_local_registry
-
-### 5.10.2. To add an image:
-
+```
+dev_install_local_registry
+```
+### 5.10.2. Pour ajouter une image:  
 ```sh
 docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
 #et l'utiliser
 helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
 ```
-
-### 5.10.3. To uninstall the local registry:
-
-    dev_uninstall_local_registry
-
-### 5.10.4. User Interface
-
-Ingress are defined by the variable DOCKER_REGISTRY_UI_DNS_NAMES
+### 5.10.3. Pour désinstaller le registre local:
+```
+dev_uninstall_local_registry
+```
+### 5.10.4. Interface utilisateur
+Les Ingress sont définis par la variable DOCKER_REGISTRY_UI_DNS_NAMES
 
 ## 5.11. Letsencrypt
-
 ### 5.11.1. Oracle OCI DNS01
-
 #### 5.11.1.1. Installation
-
-To create two ClusterIssuers called letstencrypt-oci and letsentrypt-staging-oci (for testing purposes) you must complete the OCI_\* variables.\
-Then install the webhook `cluster_init_install_oci_dns_issuer`.
-
-#### 5.11.1.2. Use
-
-To create a certificate *Staging*
-
+Pour créer deux ClusterIssuer appelés letstencrypt-oci et letsentrypt-staging-oci (à des fins de test) il faut compléter les variables OCI_*.  
+Ensuite installer le webhook `cluster_init_install_oci_dns_issuer`.  
+#### 5.11.1.2. Utilisation
+pour créer un certificat *staging*
 ```yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -783,19 +653,13 @@ spec:
     kind: ClusterIssuer
   secretName: test.myocihostedzone.org
 ```
-
-#### 5.11.1.3. Uninstallation
-
+#### 5.11.1.3. Désinstallation
 ```sh
 cluster_init_remove_oci_dns_issuer
 ```
-
 ### 5.11.2. Azure DNS
-
-First of all the cli must be installed
-
+Tout d'abord la cli doit être installée
 #### 5.11.2.1. Installation
-
 ```sh
 az login --use-device-code
 AZURE_CERT_MANAGER_NEW_SP_NAME=kube-cluster-azure-sp
@@ -812,17 +676,12 @@ AZURE_DNS_ID=$(az network dns zone show --name $AZURE_DNS_ZONE --resource-group 
 az role assignment delete --assignee $AZURE_CERT_MANAGER_SP_APP_ID --role Contributor
 az role assignment create --assignee $AZURE_CERT_MANAGER_SP_APP_ID --role "DNS Zone Contributor" --scope $AZURE_DNS_ID
 ```
-
-Update the variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MANAGER_SP_PASSWORD, AZURE_TENANT_ID, AZURE_DNS_ID and AZURE_SUBSCRIPTION_ID in your oci-manage or oci-manage-config.sh.
-
+Mettez les variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MANAGER_SP_PASSWORD, AZURE_TENANT_ID, AZURE_DNS_ID et AZURE_SUBSCRIPTION_ID à jour dans votre oci-manage ou oci-manage-config.sh.   
 ```sh
 cluster_init_azure_dns_issuer
 ```
-
-#### 5.11.2.2. Use
-
-To create a certificate *Staging*
-
+#### 5.11.2.2. Utilisation
+pour créer un certificat *staging*
 ```yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -838,40 +697,33 @@ spec:
     kind: ClusterIssuer
   secretName: test.example.org
 ```
-
-#### 5.11.2.3. Uninstalling
-
+#### 5.11.2.3. Désinstallation
 ```sh
 cluster_reset_remove_azure_dns_issuer
 ```
-
-## 5.12. Bird on the control-plane
-
+## 5.12. Bird sur le control-plane
 TODO
-
 ```sh
 sudo apt install bird
 sudo systemctl enable bird
 sudo birdc configure
 ```
-
-    router id $CONTROL_PLANE_IP;
-    define my_as=$CLUSTER_AS;
-    protocol direct {
-            interface "ens1*", "cilium*", "lxc*";
-    }
-    protocol kernel {
-            persist off;
-            scan time 20;
-            learn;
-            import all;
-            export none;
-    }
-
-## File `README.md` multilingual
-
-Machine translation is done by Azure with `markdown-translator`
-
+```
+router id $CONTROL_PLANE_IP;
+define my_as=$CLUSTER_AS;
+protocol direct {
+        interface "ens1*", "cilium*", "lxc*";
+}
+protocol kernel {
+        persist off;
+        scan time 20;
+        learn;
+        import all;
+        export none;
+}
+```
+## Fichier `README.md` multilingue
+La traduction automatique est réalisée par Azure avec `markdown-translator`  
 ```sh
 npm install markdown-translator -g
 md-translator set --key d5a37213c945793e297f0f609e293f99
