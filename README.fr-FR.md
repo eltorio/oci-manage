@@ -63,9 +63,10 @@
       - [5.11.1.2. Utilisation](#51112-utilisation)
       - [5.11.1.3. Désinstallation](#51113-désinstallation)
     - [5.11.2. Azure DNS](#5112-azure-dns)
-      - [5.11.2.1. Installation](#51121-installation)
-      - [5.11.2.2. Utilisation](#51122-utilisation)
-      - [5.11.2.3. Désinstallation](#51123-désinstallation)
+      - [5.11.2.1. Installation de Azure CLI](#51121-installation-de-azure-cli)
+      - [5.11.2.2. Installation](#51122-installation)
+      - [5.11.2.3. Utilisation](#51123-utilisation)
+      - [5.11.2.4. Désinstallation](#51124-désinstallation)
   - [5.12. Bird sur le control-plane](#512-bird-sur-le-control-plane)
   - [5.13. Wireguard](#513-wireguard)
     - [5.13.1. Initialisation](#5131-initialisation)
@@ -668,7 +669,11 @@ cluster_init_remove_oci_dns_issuer
 ```
 ### 5.11.2. Azure DNS
 Tout d'abord la cli doit être installée
-#### 5.11.2.1. Installation
+#### 5.11.2.1. Installation de Azure CLI
+```sh 
+azure_install_cli
+```
+#### 5.11.2.2. Installation
 ```sh
 az login --use-device-code
 AZURE_CERT_MANAGER_NEW_SP_NAME=kube-cluster-azure-sp
@@ -689,7 +694,7 @@ Mettez les variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MA
 ```sh
 cluster_init_azure_dns_issuer
 ```
-#### 5.11.2.2. Utilisation
+#### 5.11.2.3. Utilisation
 pour créer un certificat *staging*
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -706,7 +711,7 @@ spec:
     kind: ClusterIssuer
   secretName: test.example.org
 ```
-#### 5.11.2.3. Désinstallation
+#### 5.11.2.4. Désinstallation
 ```sh
 cluster_reset_remove_azure_dns_issuer
 ```

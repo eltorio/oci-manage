@@ -64,9 +64,10 @@
       - [5.11.1.2. Use](#51112-use)
       - [5.11.1.3. Uninstallation](#51113-uninstallation)
     - [5.11.2. Azure DNS](#5112-azure-dns)
-      - [5.11.2.1. Installation](#51121-installation)
-      - [5.11.2.2. Use](#51122-use)
-      - [5.11.2.3. Uninstalling](#51123-uninstalling)
+      - [5.11.2.1. Install the Azure CLI](#51121-install-the-azure-cli)
+      - [5.11.2.2. Installation](#51122-installation)
+      - [5.11.2.3. Use](#51123-use)
+      - [5.11.2.4. Uninstalling](#51124-uninstalling)
   - [5.12. Bird on the control-plane](#512-bird-on-the-control-plane)
   - [5.13. Wireguard](#513-wireguard)
     - [5.13.1. Initialization](#5131-initialization)
@@ -805,7 +806,13 @@ cluster_init_remove_oci_dns_issuer
 
 First of all the cli must be installed
 
-#### 5.11.2.1. Installation
+#### 5.11.2.1. Install the Azure CLI
+
+```sh
+azure_install_cli
+```
+
+#### 5.11.2.2. Installation
 
 ```sh
 az login --use-device-code
@@ -830,7 +837,7 @@ Update the variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MA
 cluster_init_azure_dns_issuer
 ```
 
-#### 5.11.2.2. Use
+#### 5.11.2.3. Use
 
 To create a certificate *Staging*
 
@@ -850,7 +857,7 @@ spec:
   secretName: test.example.org
 ```
 
-#### 5.11.2.3. Uninstalling
+#### 5.11.2.4. Uninstalling
 
 ```sh
 cluster_reset_remove_azure_dns_issuer
