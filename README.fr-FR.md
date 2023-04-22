@@ -67,7 +67,12 @@
       - [5.11.2.2. Utilisation](#51122-utilisation)
       - [5.11.2.3. Désinstallation](#51123-désinstallation)
   - [5.12. Bird sur le control-plane](#512-bird-sur-le-control-plane)
-  - [Fichier `README.md` multilingue](#fichier-readmemd-multilingue)
+  - [5.13. Wireguard](#513-wireguard)
+    - [5.13.1. Initialisation](#5131-initialisation)
+    - [5.13.2. Ajout d'un nœud](#5132-ajout-dun-nœud)
+    - [5.13.3. Voir les nœuds](#5133-voir-les-nœuds)
+    - [5.13.4. Déployer les nœuds](#5134-déployer-les-nœuds)
+  - [5.14. Fichier `README.md` multilingue](#514-fichier-readmemd-multilingue)
 
 ## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
@@ -726,7 +731,26 @@ protocol kernel {
         export none;
 }
 ```
-## Fichier `README.md` multilingue
+## 5.13. Wireguard
+Un réseau maillé avec Wireguard permet de s'affranchir de lien Oracle LPG et éventuellement d'ouvrir le cluster à l'extérieur de l'infrastructure Oracle  
+
+### 5.13.1. Initialisation
+```sh
+wg_meshconf_init
+```
+### 5.13.2. Ajout d'un nœud
+```sh
+wg_meshconf_addpeer oci-nodeN oci-nodeN.example.com 51820
+```
+### 5.13.3. Voir les nœuds
+```sh
+wg_meshconf_showpeers
+```
+### 5.13.4. Déployer les nœuds
+```sh
+wg_meshconf_deploy_config
+```
+## 5.14. Fichier `README.md` multilingue
 La traduction automatique est réalisée par Azure avec `markdown-translator`  
 ```sh
 npm install markdown-translator -g

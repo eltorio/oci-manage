@@ -68,7 +68,12 @@
       - [5.11.2.2. Use](#51122-use)
       - [5.11.2.3. Uninstalling](#51123-uninstalling)
   - [5.12. Bird on the control-plane](#512-bird-on-the-control-plane)
-  - [File `README.md` multilingual](#file-readmemd-multilingual)
+  - [5.13. Wireguard](#513-wireguard)
+    - [5.13.1. Initialization](#5131-initialization)
+    - [5.13.2. Adding a node](#5132-adding-a-node)
+    - [5.13.3. See nodes](#5133-see-nodes)
+    - [5.13.4. Deploy Nodes](#5134-deploy-nodes)
+  - [5.14. File `README.md` multilingual](#514-file-readmemd-multilingual)
 
 ## 1.1. Objectives
 
@@ -874,7 +879,35 @@ sudo birdc configure
             export none;
     }
 
-## File `README.md` multilingual
+## 5.13. Wireguard
+
+A mesh network with Wireguard makes it possible to overcome Oracle LPG link and possibly open the cluster outside the Oracle infrastructure
+
+### 5.13.1. Initialization
+
+```sh
+wg_meshconf_init
+```
+
+### 5.13.2. Adding a node
+
+```sh
+wg_meshconf_addpeer oci-nodeN oci-nodeN.example.com 51820
+```
+
+### 5.13.3. See nodes
+
+```sh
+wg_meshconf_showpeers
+```
+
+### 5.13.4. Deploy Nodes
+
+```sh
+wg_meshconf_deploy_config
+```
+
+## 5.14. File `README.md` multilingual
 
 Machine translation is done by Azure with `markdown-translator`
 
