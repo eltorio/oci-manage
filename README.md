@@ -393,14 +393,14 @@ au bout de quelques minutes, selon le nombre et la performance des VM le cluster
 ```sh
 kubectl get nodes -o wide
 NAME                                         STATUS   ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION       CONTAINER-RUNTIME
-node2.private.tenancy2.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.1.1.14      <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-node3.private.tenancy3.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.2.1.60      <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-node4.private.tenancy2.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.1.1.142     <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-node5.private.tenancy4.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.3.1.222     <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-master.private.tenancy1.oraclevcn.com        Ready    control-plane   3h   v1.26.3   10.0.253.75    <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-node6.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.0.253.201   <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-node7.private.tenancy5.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.4.1.117     <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
-node8.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.26.3   10.0.253.138   <none>        Ubuntu 22.04.2 LTS   5.15.0-1032-oracle   docker://23.0.3
+node2.private.tenancy2.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.1.1.14      <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+node3.private.tenancy3.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.2.1.60      <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+node4.private.tenancy2.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.1.1.142     <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+node5.private.tenancy4.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.3.1.222     <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+master.private.tenancy1.oraclevcn.com        Ready    control-plane   3h   v1.27.1   10.0.253.75    <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+node6.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.0.253.201   <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+node7.private.tenancy5.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.4.1.117     <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
+node8.private.tenancy1.oraclevcn.com         Ready    <none>          3h   v1.27.1   10.0.253.138   <none>        Ubuntu 22.04.2 LTS   5.15.0-1033-oracle   docker://23.0.4
 ```
 Et tous les pods systèmes fonctionnent:  
 ```sh
