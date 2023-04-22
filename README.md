@@ -1,5 +1,5 @@
-[![en-US](https://img.shields.io/badge/lang-en--us-red.svg)](https://github.com/eltorio/oci-manage/blob/master/README.md)
-[![fr-FR](https://img.shields.io/badge/lang-fr--fr-green.svg)](https://github.com/eltorio/oci-manage/blob/master/README.fr-FR.md)\
+[![en-US](https://img.shields.io/badge/lang-en--us-red.svg)](https://github.com/eltorio/oci-manage/blob/main/README.md)
+[![fr-FR](https://img.shields.io/badge/lang-fr--fr-green.svg)](https://github.com/eltorio/oci-manage/blob/main/README.fr-FR.md)\
 **This file is written in French, the other languages are derived from a machine translation**
 
 # 1. Oracle OCI-Kubernetes Lab *bare metal*
