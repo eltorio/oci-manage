@@ -1,4 +1,26 @@
 #!/bin/bash
+# 
+# oci-manage -- A library providing functions for building and managing
+# a bare metal Kubernetes cluster on Oracle OCI
+#
+# Feel free to contribute to this project at:
+#    https://github.com/eltorio/oci-manage
+#
+# Copyright 2023 Ronan Le Meillat.
+#
+# oci-manage is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# oci-manage is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with oci-manage.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
+#
 #### default values (real are in ./oci-manage-config.sh )
 AZURE_CERT_MANAGER_SP_APP_ID="4330169c-062c-4418-983d-0ae202fa7918"
 AZURE_CERT_MANAGER_SP_PASSWORD="pohsh5ahl1quoong6aa0iug8toogh3aengup0cha7E"
@@ -2414,6 +2436,31 @@ spec:
           environment: AzurePublicCloud
 EOF
 }
+
+function oci-manage-copyright(){
+  cat << EOF
+oci-manage -- A library providing functions for building and managing
+a bare metal Kubernetes cluster on Oracle OCI
+
+Feel free to contribute to this project at:
+   https://github.com/eltorio/oci-manage
+
+Copyright 2023 Ronan Le Meillat.
+
+oci-manage is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+oci-manage is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with oci-manage.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
+EOF
+}
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -2480,6 +2527,7 @@ function cluster_help() {
   echo "oci_list_compartment:                              list all the tenancy compartments"
   echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
   echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
+  echo "oci-manage-copyright:                              shows copyright"
   echo "wg_meshconf_deploy_config:                         generate and deploy wireguard mesh network"
   echo "wg_meshconf_get_all_peers_sorted:                  parse and sort the wireguard csv db"
   echo "wg_meshconf_init:                                  initialise the wg meshconf database"
