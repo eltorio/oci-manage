@@ -1097,6 +1097,18 @@ function cluster_run_on_all_members_as_root() {
   fi
 }
 
+function cluster_run_on_all_as_root() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_root command"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      ssh root@$MEMBER $1
+    done
+    sudo $1
+  fi
+}
+
 function cluster_run_on_all_members_as_current_user() {
   if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_current_user command"
@@ -1150,6 +1162,17 @@ function cluster_copy_file_as_root() {
     for MEMBER in $CLUSTER_MEMBERS; do
       echo $MEMBER
       scp $1 root@$MEMBER:$2
+    done
+  fi
+}
+
+function cluster_copy_dir_as_root() {
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_copy_dir_as_root local_dir remote_dir"
+  else
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo $MEMBER
+      scp -r $1 root@$MEMBER:$2
     done
   fi
 }
@@ -1369,6 +1392,7 @@ function cluster_init_create_master_haproxy_cfg() {
   if [ "$#" -ne 0 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_init_create_master_haproxy_cfg"
   else
+    sudo mkdir -p /etc/haproxy/k8s/
     sudo bash -c "cat >/etc/haproxy/haproxy.cfg" <<EOF
 global
         log /dev/log    local0
@@ -1386,13 +1410,20 @@ resolvers dns
   nameserver k8s  127.0.0.53:53
   hold valid 1s
 
+EOF
+    sudo bash -c "cat >/etc/haproxy/k8s/traefik.cfg" <<EOF
 frontend traefik
+        timeout client 5s
         bind :443
         default_backend k8s-traefik 
 
 backend k8s-traefik
+        timeout connect 1s
+        timeout server 10s
         server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
 EOF
+    sudo bash -c "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
+    sudo systemctl daemon-reload
     sudo systemctl restart haproxy
   fi
 }
@@ -1401,7 +1432,11 @@ function cluster_deploy_haproxy_config_on_members() {
   if [ "$#" -ne 0 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_deploy_haproxy_config_on_members"
   else
+    cluster_run_on_all_members_as_root "mkdir -p /etc/haproxy/k8s/"
     cluster_copy_file_as_root /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg
+    cluster_copy_dir_as_root /etc/haproxy/k8s /etc/haproxy/k8s/
+    cluster_run_on_all_members_as_root "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
+    cluster_run_on_all_members_as_root "systemctl daemon-reload"
     cluster_run_on_all_members_as_root "systemctl restart haproxy"
   fi
 }
@@ -2482,7 +2517,8 @@ function cluster_help() {
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
   echo "cluster_apt_install:                               install an apt package on all the cluster"
   echo "cluster_cilium_full_status:                        issue cilium status on each member"
-  echo "cluster_cilium_hostip_all                          get all cilium pods IPP"
+  echo "cluster_cilium_hostip_all:                         get all cilium pods IPP"
+  echo "cluster_copy_dir_as_root:                          copy local dir to remote dir (take care of the trailing slashes)"
   echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
   echo "cluster_copy_file_as_current_user:                 copy local file to each member"
   echo "cluster_copy_file_as_root:                         copy local file as root to each member"
@@ -2518,6 +2554,7 @@ function cluster_help() {
   echo "cluster_restart_haproxy:                           restart haproxy and systemd-resolved"
   echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
   echo "cluster_run_on_all_members_as_root:                run a command on each member"
+  echo "cluster_run_on_all_as_root:                        run as root on all the cluster"
   echo "cluster_test_tcp_port:                             open a tcp server and try to reach it"
   echo "cluster_test_udp_port:                             open a udp server and try to reach it"
   echo "cluster_traefik_launch_simple_proxy:               lauche simpleproxy from private ip to traefik loadbalancer"
