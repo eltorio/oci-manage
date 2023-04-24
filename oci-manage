@@ -268,9 +268,9 @@ function cluster_get_host_external_ipv4or6() {
   if [ "$#" -ne 2 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_get_host_external_ipv4 host AorAAAA"
   else
-  HOST=$1
-  QUERY=$2
-  IP=`dig +short $HOST.$DNS_PUBLIC_ZONE $QUERY`
+    HOST=$1
+    QUERY=$2
+    IP=$(dig +short $HOST.$DNS_PUBLIC_ZONE $QUERY)
     echo -e "$HOST\t$IP"
   fi
 }
@@ -1264,6 +1264,10 @@ function wg_meshconf_addpeer() {
   cd $PWD
 }
 
+function wg_meshconf_get_fqdns() {
+  awk -F "\"*,\"*" '{print $3}' wg/database.csv | tail -n +2
+}
+
 function wg_meshconf_deploy_config() {
   PWD=$(pwd)
   if [ "$#" -ne 0 ]; then
@@ -1272,10 +1276,11 @@ function wg_meshconf_deploy_config() {
     cd ~
     wg_meshconf_init
     docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
-    for MEMBER in $CLUSTER_MEMBERS; do
-      if [ -f "wg/output/$MEMBER.conf" ]; then
+    for MEMBER in $(wg_meshconf_get_fqdns); do
+      MEMBER_SHORT=`echo -n $MEMBER | cut -d"." -f1`
+      if [ -f "wg/output/$MEMBER_SHORT.conf" ]; then
         echo $MEMBER
-        scp wg/output/$MEMBER.conf root@$MEMBER:/etc/wireguard/wg0.conf
+        scp wg/output/$MEMBER_SHORT.conf root@$MEMBER:/etc/wireguard/wg0.conf
         ssh root@$MEMBER "systemctl enable wg-quick@wg0 ; systemctl restart wg-quick@wg0"
       fi
     done
@@ -2586,23 +2591,23 @@ EOF
 }
 
 function cluster_iptables_open_ipv4_port() {
-    if [ "$#" -ne 3 ]; then
-        echo "Illegal number of parameters:" && echo "    usage cluster_iptables_open_ipv4_port port tcp/udp comment"
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_iptables_open_ipv4_port port tcp/udp comment"
+  else
+    PORT=$1
+    PROTOCOL=$2
+    COMMENT=$3
+    cat /etc/iptables/rules.v4 | grep -qe "^-A INPUT.*-p $PROTOCOL.*--dport $PORT.*-j ACCEPT.*$"
+    NOTALREADYDONE=$?
+    if [ $NOTALREADYDONE -eq 1 ]; then
+      cat /etc/iptables/rules.v4 | sed "/^-A INPUT.*-p tcp.*--dport 22.*-j ACCEPT.*$/a -A INPUT -p $PROTOCOL -m state --state NEW -m $PROTOCOL --dport $PORT -j ACCEPT -m comment --comment \"$COMMENT\"" >/tmp/rules.v4
+      sudo cp /etc/iptables/rules.v4 /etc/iptables/rules.v4.bak
+      sudo cp /tmp/rules.v4 /etc/iptables/rules.v4
+      init_set_iptables_members
     else
-        PORT=$1
-        PROTOCOL=$2
-        COMMENT=$3
-        cat /etc/iptables/rules.v4 | grep -qe "^-A INPUT.*-p $PROTOCOL.*--dport $PORT.*-j ACCEPT.*$"
-        NOTALREADYDONE=$?
-        if [ $NOTALREADYDONE -eq 1 ]; then
-            cat /etc/iptables/rules.v4 | sed "/^-A INPUT.*-p tcp.*--dport 22.*-j ACCEPT.*$/a -A INPUT -p $PROTOCOL -m state --state NEW -m $PROTOCOL --dport $PORT -j ACCEPT -m comment --comment \"$COMMENT\"" > /tmp/rules.v4
-            sudo cp /etc/iptables/rules.v4 /etc/iptables/rules.v4.bak
-            sudo cp /tmp/rules.v4 /etc/iptables/rules.v4
-            init_set_iptables_members
-        else
-            echo "already open"
-        fi
+      echo "already open"
     fi
+  fi
 }
 
 function cluster_help() {
