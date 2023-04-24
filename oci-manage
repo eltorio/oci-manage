@@ -1439,6 +1439,7 @@ EOF
 frontend traefik
         timeout client 5s
         bind :443
+        bind :::443
         default_backend k8s-traefik 
 
 backend k8s-traefik
