@@ -38,6 +38,7 @@ CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
 CONTROL_PLANE_IP=10.0.253.75
 CONTROL_PLANE_LOCAL=master
 CONTROL_PLANE_PORT=6443
+DNS_PUBLIC_ZONE=example.org
 IP_POOL=172.31.255.0/24
 LETSENCRYPT_USER="user@example.com"
 OCI_DB=~/oci.json
@@ -90,7 +91,8 @@ WG_DATABASE="./wg"
 
 . ~/oci-manage-config.sh
 
-K8S_CLUSTER="$CLUSTER_MEMBERS $CONTROL_PLANE_INTERNAL_ADDRESS"
+K8S_CLUSTER="$CLUSTER_MEMBERS $CONTROL_PLANE_LOCAL"
+K8S_CLUSTER_LONG="$CLUSTER_MEMBERS $CONTROL_PLANE_INTERNAL_ADDRESS"
 DASHBOARD_DNS_NAMES_JS=$(
   RES=""
   for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
@@ -262,6 +264,27 @@ function init_install_software() {
   fi
 }
 
+function cluster_get_host_external_ipv4or6() {
+  if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_get_host_external_ipv4 host AorAAAA"
+  else
+  HOST=$1
+  QUERY=$2
+  IP=`dig +short $HOST.$DNS_PUBLIC_ZONE $QUERY`
+    echo -e "$HOST\t$IP"
+  fi
+}
+
+function cluster_get_external_ips() {
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_get_external_ips"
+  else
+    for MEMBER in $K8S_CLUSTER; do
+      cluster_get_host_external_ipv4or6 $MEMBER A
+      cluster_get_host_external_ipv4or6 $MEMBER AAAA
+    done
+  fi
+}
 function get_host_arch() {
   if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage get_host_arch host"
@@ -300,11 +323,12 @@ function init_set_iptables() {
   else
     HOST="$1"
     scp -4 /etc/iptables/rules.v4 root@$HOST:/etc/iptables/rules.v4
-    ssh -4 root@$HOST "iptables-restore -t /etc/iptables/rules.v4"
+    #ssh -4 root@$HOST "iptables-restore -t /etc/iptables/rules.v4"
+    ssh -4 root@$HOST "systemctl restart iptables.service"
   fi
 }
 
-function init_set_iptables_members() {
+function i() {
   if [ "$#" -ne 0 ]; then
     echo "Illegal number of parameters:" && echo "    usage init_set_iptables_members"
   else
@@ -911,7 +935,7 @@ function init_get_private_routes() {
     IP=$1
     rm -f /tmp/$IP.tmp
     NEW_MEMBER_SUBNET="$(get_subnet_from_ip $IP)"
-    for DEST_MEMBER in $K8S_CLUSTER; do
+    for DEST_MEMBER in $K8S_CLUSTER_LONG; do
       DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
       if [[ "$DEST_MEMBER" != "$IP" ]]; then
         if [[ "$NEW_MEMBER_SUBNET" != "$DEST_MEMBER_SUBNET" ]]; then
@@ -2513,22 +2537,22 @@ function cluster_restart_haproxy() {
   sudo systemctl restart haproxy
 }
 
-function cluster_coredns_get_corefile(){
+function cluster_coredns_get_corefile() {
   kubectl get configmap -n kube-system coredns -o json | jq .data.Corefile | sed -e 's/\\n/\n/g' -e 's/"//g'
 }
 
-function cluster_coredns_add_k8s_external(){
+function cluster_coredns_add_k8s_external() {
   cluster_get_coredns_corefile | grep -qe '^\s*k8s_external '
   NOTALREADYDONE=$?
   if [ $NOTALREADYDONE -eq 1 ]; then
     cluster_get_coredns_corefile | sed '/k8s_external cluster.external/a loadbalance'
   else
-    cluster_get_coredns_corefile 
+    cluster_get_coredns_corefile
   fi
 }
 
-function cluster_init_coredns_config(){
-  cat << EOF | kubectl apply -f -
+function cluster_init_coredns_config() {
+  cat <<EOF | kubectl apply -f -
 apiVersion: v1
 data:
   Corefile: |
@@ -2560,6 +2584,26 @@ metadata:
 EOF
 }
 
+function cluster_iptables_open_ipv4_port() {
+    if [ "$#" -ne 3 ]; then
+        echo "Illegal number of parameters:" && echo "    usage cluster_iptables_open_ipv4_port port tcp/udp comment"
+    else
+        PORT=$1
+        PROTOCOL=$2
+        COMMENT=$3
+        cat /etc/iptables/rules.v4 | grep -qe "^-A INPUT.*-p $PROTOCOL.*--dport $PORT.*-j ACCEPT.*$"
+        NOTALREADYDONE=$?
+        if [ $NOTALREADYDONE -eq 1 ]; then
+            cat /etc/iptables/rules.v4 | sed "/^-A INPUT.*-p tcp.*--dport 22.*-j ACCEPT.*$/a -A INPUT -p $PROTOCOL -m state --state NEW -m $PROTOCOL --dport $PORT -j ACCEPT -m comment --comment \"$COMMENT\"" > /tmp/rules.v4
+            sudo cp /etc/iptables/rules.v4 /etc/iptables/rules.v4.bak
+            sudo cp /tmp/rules.v4 /etc/iptables/rules.v4
+            init_set_iptables_members
+        else
+            echo "already open"
+        fi
+    fi
+}
+
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -2575,6 +2619,8 @@ function cluster_help() {
   echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
   echo "cluster_coredns_add_k8s_external:                  add cluster.external zone to coredns wich resolve all the services"
   echo "cluster_coredns_get_corefile:                      retrieve the coredns Corefile"
+  echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
+  echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"
   echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
   echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
   echo "cluster_init_coredns_config:                       create the initial coredns config with cluster.external zone"
@@ -2594,6 +2640,7 @@ function cluster_help() {
   echo "cluster_init_install_openebs:                      install openEbs storage management"
   echo "cluster_init_install_traefik:                      deploy the traefik helm chart in kube-traefik namespace"
   echo "cluster_iptables_flush:                            flush iptables on control plane and all members"
+  echo "cluster_iptables_open_ipv4_port:                   open an ipv4 on all the cluster firewalls"
   echo "cluster_ping_host_from_members:                    ping the given host from each member"
   echo "cluster_reboot:                                    reboot all the cluster"
   echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
