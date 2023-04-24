@@ -749,7 +749,16 @@ function get_subnet() {
     echo "Illegal number of parameters:" && echo "    usage get_subnet host"
   else
     NEW_MEMBER=$1
-    echo "$(dig $NEW_MEMBER +short | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')0/24"
+    echo "$(dig $NEW_MEMBER +short | head -n 1 | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2\3/')0/24"
+  fi
+}
+
+function get_subnet_16() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage get_subnet host"
+  else
+    NEW_MEMBER=$1
+    echo "$(dig $NEW_MEMBER +short | head -n 1 | sed 's/\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\.\)\([0-9]\{1,3\}\)/\1\2/')0.0/16"
   fi
 }
 
@@ -1160,10 +1169,12 @@ function cluster_deploy_hosts() {
     echo "Illegal number of parameters:" && echo "    usage cluster_deploy_hosts"
   else
     for MEMBER in $CLUSTER_MEMBERS; do
-      sed -e '/^127\..*/d' -e '/^[[:space:]]*$/d' /etc/hosts >/tmp/$MEMBER
-      echo "127.0.1.1    $MEMBER     $MEMBER" >>/tmp/$MEMBER
-      scp /tmp/$MEMBER root@$MEMBER:/etc/hosts
-      rm /tmp/$MEMBER
+      #if [ ${MEMBER:0:4} == "oci-" ]; then    #for oci only
+        sed -e '/^127\..*/d' -e '/^[[:space:]]*$/d' /etc/hosts >/tmp/$MEMBER
+        echo "127.0.1.1    $MEMBER     $MEMBER" >>/tmp/$MEMBER
+        scp /tmp/$MEMBER root@$MEMBER:/etc/hosts
+        rm /tmp/$MEMBER
+      #fi
     done
   fi
 }
@@ -1277,7 +1288,7 @@ function wg_meshconf_deploy_config() {
     wg_meshconf_init
     docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
     for MEMBER in $(wg_meshconf_get_fqdns); do
-      MEMBER_SHORT=`echo -n $MEMBER | cut -d"." -f1`
+      MEMBER_SHORT=$(echo -n $MEMBER | cut -d"." -f1)
       if [ -f "wg/output/$MEMBER_SHORT.conf" ]; then
         echo $MEMBER
         scp wg/output/$MEMBER_SHORT.conf root@$MEMBER:/etc/wireguard/wg0.conf
@@ -2673,6 +2684,7 @@ function cluster_help() {
   echo "get_remote_interface:                              get the remote interface on a host giving its mac address"
   echo "get_subnet_from_ip:                                get subnet for ip"
   echo "get_subnet:                                        get subnet for named host"
+  echo "get_subnet_16:                                     get full subnet"
   echo "init_allow_keys_for_root:                          allow all admins keys in the new host"
   echo "init_create_admin_user_with_key:                   create an admin user on a new host"
   echo "init_create_private_interface:                     create the private interface"
