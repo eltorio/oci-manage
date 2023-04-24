@@ -1476,7 +1476,7 @@ function cluster_deploy_haproxy_config_on_members() {
   else
     cluster_run_on_all_members_as_root "mkdir -p /etc/haproxy/k8s/"
     cluster_copy_file_as_root /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg
-    cluster_copy_dir_as_root /etc/haproxy/k8s /etc/haproxy/k8s/
+    cluster_copy_dir_as_root /etc/haproxy/k8s /etc/haproxy/
     cluster_run_on_all_members_as_root "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
     cluster_run_on_all_members_as_root "systemctl daemon-reload"
     cluster_run_on_all_members_as_root "systemctl restart haproxy"
