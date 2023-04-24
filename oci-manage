@@ -1269,8 +1269,9 @@ function wg_meshconf_addpeer() {
     ALL_PEERS_SORTED=$(wg_meshconf_get_all_peers_sorted)
     GREATEST_PEER_EXCEPT_GW=$(wg_meshconf_get_all_peers_sorted_except_gw)
     NEW_PEER=$(echo $GREATEST_PEER_EXCEPT_GW | awk -F "." '{printf "%d.%d.%d.%d",$1,$2,$3,($4+1)}')
+    SUBNET=`get_subnet_16 $PEER_NAME`
     echo "Adding $NEW_PEER/32"
-    docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT
+    docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT --allowedips $SUBNET
   fi
   cd $PWD
 }
