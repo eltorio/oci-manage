@@ -42,39 +42,40 @@
   - [5.1. Certification Authority](#51-certification-authority)
     - [5.1.1. Deploying the CA](#511-deploying-the-ca)
   - [5.2. Control-Plane](#52-control-plane)
-  - [5.3. Workers](#53-workers)
-  - [5.4. Clearing the cluster and reinstalling the cluster](#54-clearing-the-cluster-and-reinstalling-the-cluster)
-    - [5.4.1. Erasure](#541-erasure)
-    - [5.4.2. Resettlement](#542-resettlement)
-  - [5.5. Persistent storage](#55-persistent-storage)
-    - [5.5.1. Longhorn](#551-longhorn)
-    - [5.5.2. OpenEBS/jiva](#552-openebsjiva)
-  - [5.6. Certificate Manager](#56-certificate-manager)
-  - [5.7. Openness to the outside world](#57-openness-to-the-outside-world)
-  - [5.8. Access to dashboards](#58-access-to-dashboards)
-  - [5.9. Grafana](#59-grafana)
-  - [5.10. Local container registry](#510-local-container-registry)
-    - [5.10.1. Create a specific name resolution:](#5101-create-a-specific-name-resolution)
-    - [5.10.2. To add an image:](#5102-to-add-an-image)
-    - [5.10.3. To uninstall the local registry:](#5103-to-uninstall-the-local-registry)
-    - [5.10.4. User Interface](#5104-user-interface)
-  - [5.11. Letsencrypt](#511-letsencrypt)
-    - [5.11.1. Oracle OCI DNS01](#5111-oracle-oci-dns01)
-      - [5.11.1.1. Installation](#51111-installation)
-      - [5.11.1.2. Use](#51112-use)
-      - [5.11.1.3. Uninstallation](#51113-uninstallation)
-    - [5.11.2. Azure DNS](#5112-azure-dns)
-      - [5.11.2.1. Install the Azure CLI](#51121-install-the-azure-cli)
-      - [5.11.2.2. Installation](#51122-installation)
-      - [5.11.2.3. Use](#51123-use)
-      - [5.11.2.4. Uninstalling](#51124-uninstalling)
-  - [5.12. Bird on the control-plane](#512-bird-on-the-control-plane)
-  - [5.13. Wireguard](#513-wireguard)
-    - [5.13.1. Initialization](#5131-initialization)
-    - [5.13.2. Adding a node](#5132-adding-a-node)
-    - [5.13.3. See nodes](#5133-see-nodes)
-    - [5.13.4. Deploy Nodes](#5134-deploy-nodes)
-  - [5.14. File `README.md` multilingual](#514-file-readmemd-multilingual)
+  - [5.3. Name resolution](#53-name-resolution)
+  - [5.4. Workers](#54-workers)
+  - [5.5. Clearing the cluster and reinstalling the cluster](#55-clearing-the-cluster-and-reinstalling-the-cluster)
+    - [5.5.1. Erasure](#551-erasure)
+    - [5.5.2. Resettlement](#552-resettlement)
+  - [5.6. Persistent storage](#56-persistent-storage)
+    - [5.6.1. Longhorn](#561-longhorn)
+    - [5.6.2. OpenEBS/jiva](#562-openebsjiva)
+  - [5.7. Certificate Manager](#57-certificate-manager)
+  - [5.8. Openness to the outside world](#58-openness-to-the-outside-world)
+  - [5.9. Access to dashboards](#59-access-to-dashboards)
+  - [5.10. Grafana](#510-grafana)
+  - [5.11. Local container registry](#511-local-container-registry)
+    - [5.11.1. Create a specific name resolution:](#5111-create-a-specific-name-resolution)
+    - [5.11.2. To add an image:](#5112-to-add-an-image)
+    - [5.11.3. To uninstall the local registry:](#5113-to-uninstall-the-local-registry)
+    - [5.11.4. User Interface](#5114-user-interface)
+  - [5.12. Letsencrypt](#512-letsencrypt)
+    - [5.12.1. Oracle OCI DNS01](#5121-oracle-oci-dns01)
+      - [5.12.1.1. Installation](#51211-installation)
+      - [5.12.1.2. Use](#51212-use)
+      - [5.12.1.3. Uninstallation](#51213-uninstallation)
+    - [5.12.2. Azure DNS](#5122-azure-dns)
+      - [5.12.2.1. Install the Azure CLI](#51221-install-the-azure-cli)
+      - [5.12.2.2. Installation](#51222-installation)
+      - [5.12.2.3. Use](#51223-use)
+      - [5.12.2.4. Uninstalling](#51224-uninstalling)
+  - [5.13. Bird on the control-plane](#513-bird-on-the-control-plane)
+  - [5.14. Wireguard](#514-wireguard)
+    - [5.14.1. Initialization](#5141-initialization)
+    - [5.14.2. Adding a node](#5142-adding-a-node)
+    - [5.14.3. View Nodes](#5143-view-nodes)
+    - [5.14.4. Deploy Nodes](#5144-deploy-nodes)
+  - [5.15. File `README.md` multilingual](#515-file-readmemd-multilingual)
 
 ## 1.1. Objectives
 
@@ -478,7 +479,14 @@ Using `oci-manage`
 cluster_init_create_control_plane
 ```
 
-## 5.3. Workers
+## 5.3. Name resolution
+
+During the installation phase the CoreDNS configuration is changed.\
+One area `cluster.external` is added. It is used to resolve the external IP addresses of the services.\
+On each node the systemd-resolved service that is in charge of system name resolution is configured to interrogate CoreDNS so the names internal to the cluster are accessible from the plane control or nodes.\
+Example `dig +short traefik.kube-traefik.cluster.external` returns the external address of the Traefik LoadBalancer.
+
+## 5.4. Workers
 
 ```sh
 cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
@@ -529,11 +537,11 @@ kubernetes-dashboard   dashboard-metrics-scraper-7bc864c59-d9dqf                
 kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                                1/1     Running   1 (29m ago)    3h
 ```
 
-## 5.4. Clearing the cluster and reinstalling the cluster
+## 5.5. Clearing the cluster and reinstalling the cluster
 
 We are in a lab so we have to do tests it is very simple to completely erase the cluster and put it back in the initial configuration. Two steps are required:
 
-### 5.4.1. Erasure
+### 5.5.1. Erasure
 
 ```sh
 cluster_reset_members
@@ -543,7 +551,7 @@ cluster_reset_storage
 cluster_reset_control_plane
 ```
 
-### 5.4.2. Resettlement
+### 5.5.2. Resettlement
 
 Remember to choose the persistence backend which is openEbs by default.\
 to use Longhorn you have to change the variable: `STORAGE_BACKEND="longhorn"`
@@ -557,11 +565,11 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 cluster_init_create_post_install_grafana
 ```
 
-## 5.5. Persistent storage
+## 5.6. Persistent storage
 
 Several solutions exist.
 
-### 5.5.1. Longhorn
+### 5.6.1. Longhorn
 
 If your nodes are powerful enough [Longhorn](https://longhorn.io/) works wonderfully. It only actually works properly if all nodes have at least 4GB of RAM.\
 Otherwise nodes with little memory collapse and the cluster suffers.\
@@ -572,7 +580,7 @@ cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
 ```
 
-### 5.5.2. OpenEBS/jiva
+### 5.6.2. OpenEBS/jiva
 
 It's a lighter solution but without Longhorn's beautiful UI.\
 It is necessary to mount the storages in /storage on the members with block storage.
@@ -581,7 +589,7 @@ It is necessary to mount the storages in /storage on the members with block stor
 cluster_init_install_openebs
 ```
 
-## 5.6. Certificate Manager
+## 5.7. Certificate Manager
 
 Since we have our own certificate authority, cert-manager is automatically deployed during the post-installation phase.\
 This allows certificates to be created automatically.\
@@ -638,7 +646,7 @@ spec:
     secretName: monhote-cert
 ```
 
-## 5.7. Openness to the outside world
+## 5.8. Openness to the outside world
 
 By default all nodes host a proxy [Haproxy](https://www.haproxy.org/). It relays port 443 of the Traefik service on local interfaces. This makes it possible to have a basic load balancer open to the outside.\
 To modify the configuration you must edit the file `/etc/haproxy/haproxy.cfg` control-plane and then deploy it to the entire cluster:
@@ -662,7 +670,7 @@ Configuring a port is simple:
     *   `kube-traefik` its namespace
     *   `443` is the TCP port.
 
-## 5.8. Access to dashboards
+## 5.9. Access to dashboards
 
 On your DNS point `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` and `DASHBOARD_DNS_NAMES` to the IP addresses of the nodes you open on the outside (only one is sufficient).
 Note that `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` and `DASHBOARD_DNS_NAMES` of the file `oci-manage-config.sh` are plural. Indeed these are bash arrays that allow to define several DNS name so for example we can point `dashboard.domaine.prive` to the IP address visible from inside the lab and `dashboard.domaine.com` to the IP address visible from the Internet. Traefik will accept both names. The SSL certificate will be valid for both names.\
@@ -673,7 +681,7 @@ Your cluster's dashboards can be accessed using these names:
 *   `https://DASHBOARD_DNS_NAMES` (login using the token obtained with dashboard_get_token)
 *   `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
 
-## 5.9. Grafana
+## 5.10. Grafana
 
 If you need you can automatically link your lab cluster to a free instance [Grafanan](https://grafana.com/)\
 Adjust values
@@ -699,13 +707,13 @@ To clear it
 kubectl 
 ```
 
-## 5.10. Local container registry
+## 5.11. Local container registry
 
 The CI/CD is good, but in development it can be long.\
 A local registry can be handy!\
 To install the registry:
 
-### 5.10.1. Create a specific name resolution:
+### 5.11.1. Create a specific name resolution:
 
 Find the IP address of the traefik load balancer with `cluster_get_traefik_lb_ip`  Here 172.31.255.49 and add the hosts section in the coredns configuration:
 
@@ -751,7 +759,7 @@ metadata:
 
     dev_install_local_registry
 
-### 5.10.2. To add an image:
+### 5.11.2. To add an image:
 
 ```sh
 docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
@@ -759,24 +767,24 @@ docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
 helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
 ```
 
-### 5.10.3. To uninstall the local registry:
+### 5.11.3. To uninstall the local registry:
 
     dev_uninstall_local_registry
 
-### 5.10.4. User Interface
+### 5.11.4. User Interface
 
 Ingress are defined by the variable DOCKER_REGISTRY_UI_DNS_NAMES
 
-## 5.11. Letsencrypt
+## 5.12. Letsencrypt
 
-### 5.11.1. Oracle OCI DNS01
+### 5.12.1. Oracle OCI DNS01
 
-#### 5.11.1.1. Installation
+#### 5.12.1.1. Installation
 
 To create two ClusterIssuers called letstencrypt-oci and letsentrypt-staging-oci (for testing purposes) you must complete the OCI_\* variables.\
 Then install the webhook `cluster_init_install_oci_dns_issuer`.
 
-#### 5.11.1.2. Use
+#### 5.12.1.2. Use
 
 To create a certificate *Staging*
 
@@ -796,23 +804,23 @@ spec:
   secretName: test.myocihostedzone.org
 ```
 
-#### 5.11.1.3. Uninstallation
+#### 5.12.1.3. Uninstallation
 
 ```sh
 cluster_init_remove_oci_dns_issuer
 ```
 
-### 5.11.2. Azure DNS
+### 5.12.2. Azure DNS
 
 First of all the cli must be installed
 
-#### 5.11.2.1. Install the Azure CLI
+#### 5.12.2.1. Install the Azure CLI
 
 ```sh
 azure_install_cli
 ```
 
-#### 5.11.2.2. Installation
+#### 5.12.2.2. Installation
 
 ```sh
 az login --use-device-code
@@ -837,7 +845,7 @@ Update the variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MA
 cluster_init_azure_dns_issuer
 ```
 
-#### 5.11.2.3. Use
+#### 5.12.2.3. Use
 
 To create a certificate *Staging*
 
@@ -857,13 +865,13 @@ spec:
   secretName: test.example.org
 ```
 
-#### 5.11.2.4. Uninstalling
+#### 5.12.2.4. Uninstalling
 
 ```sh
 cluster_reset_remove_azure_dns_issuer
 ```
 
-## 5.12. Bird on the control-plane
+## 5.13. Bird on the control-plane
 
 TODO
 
@@ -886,23 +894,23 @@ sudo birdc configure
             export none;
     }
 
-## 5.13. Wireguard
+## 5.14. Wireguard
 
 A mesh network with Wireguard makes it possible to overcome Oracle LPG link and possibly open the cluster outside the Oracle infrastructure
 
-### 5.13.1. Initialization
+### 5.14.1. Initialization
 
 ```sh
 wg_meshconf_init
 ```
 
-### 5.13.2. Adding a node
+### 5.14.2. Adding a node
 
 ```sh
 wg_meshconf_addpeer oci-nodeN oci-nodeN.example.com 51820
 ```
 
-### 5.13.3. See nodes
+### 5.14.3. View Nodes
 
 ```sh
 wg_meshconf_showpeers
@@ -910,13 +918,13 @@ wg_meshconf_showpeers
 
 <img width="874" alt="wg_meshconf" src="https://user-images.githubusercontent.com/6966689/233775674-08ad11b9-66fb-4f08-a6d7-1fd55549803f.png">
 
-### 5.13.4. Deploy Nodes
+### 5.14.4. Deploy Nodes
 
 ```sh
 wg_meshconf_deploy_config
 ```
 
-## 5.14. File `README.md` multilingual
+## 5.15. File `README.md` multilingual
 
 Machine translation is done by Azure with `markdown-translator`
 

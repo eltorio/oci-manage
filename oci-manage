@@ -1420,7 +1420,7 @@ frontend traefik
 backend k8s-traefik
         timeout connect 1s
         timeout server 10s
-        server site traefik.kube-traefik.svc.cluster.local:443 resolvers dns check inter 1000
+        server site traefik.kube-traefik.cluster.external:443 resolvers dns check inter 1000
 EOF
     sudo bash -c "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
     sudo systemctl daemon-reload
@@ -2512,6 +2512,54 @@ function cluster_restart_haproxy() {
   sudo systemctl restart systemd-resolved
   sudo systemctl restart haproxy
 }
+
+function cluster_coredns_get_corefile(){
+  kubectl get configmap -n kube-system coredns -o json | jq .data.Corefile | sed -e 's/\\n/\n/g' -e 's/"//g'
+}
+
+function cluster_coredns_add_k8s_external(){
+  cluster_get_coredns_corefile | grep -qe '^\s*k8s_external '
+  NOTALREADYDONE=$?
+  if [ $NOTALREADYDONE -eq 1 ]; then
+    cluster_get_coredns_corefile | sed '/k8s_external cluster.external/a loadbalance'
+  else
+    cluster_get_coredns_corefile 
+  fi
+}
+
+function cluster_init_coredns_config(){
+  cat << EOF | kubectl apply -f -
+apiVersion: v1
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+        k8s_external cluster.external
+    }
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+EOF
+}
+
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -2525,8 +2573,11 @@ function cluster_help() {
   echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
   echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
   echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
+  echo "cluster_coredns_add_k8s_external:                  add cluster.external zone to coredns wich resolve all the services"
+  echo "cluster_coredns_get_corefile:                      retrieve the coredns Corefile"
   echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
   echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
+  echo "cluster_init_coredns_config:                       create the initial coredns config with cluster.external zone"
   echo "cluster_init_create_control_plane_pool_kubernetes: create control plane with ipam=kubernetes"
   echo "cluster_init_create_control_plane:                 create control plane with ipam=cluster-pool"
   echo "cluster_init_create_master_haproxy_cfg:            create a basic haproxy 443/tcp proxy to traefik"
