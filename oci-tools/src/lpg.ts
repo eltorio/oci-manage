@@ -8,17 +8,22 @@ import * as core from "oci-core";
 import * as identity from "oci-identity";
 import * as common from "oci-common";
 import db from "./config/oci.json" assert {type: "json"}
-import { getAcceptorLPG, getLocation } from "./oci.js";
+import { getAcceptorLPG, getLocation, getRequestorLPGUniversal } from "./oci.js";
 export type DB = typeof db;
 export type OCITenancy = typeof db[0];
 
 const configurationFilePath = "~/.oci/config";
-
+const WAITs = 15;
 
 // Create a default authentication provider that uses the DEFAULT
 // profile in the configuration file.
 // Refer to <see href="https://docs.cloud.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm#SDK_and_CLI_Configuration_File>the public documentation</see> on how to prepare a configuration file.
 
+function sleep(ms:number) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
 
 function getProvider(configProfile: string): common.ConfigFileAuthenticationDetailsProvider {
     return new common.ConfigFileAuthenticationDetailsProvider(configurationFilePath, configProfile);
@@ -102,6 +107,7 @@ async function linkLPG(requestor: string, localPeeringGateway: string, distantPe
         const connectLocalPeeringGatewaysResponse = await client.connectLocalPeeringGateways(
             connectLocalPeeringGatewaysRequest
         );
+
     } catch (error) {
         console.log("connectLocalPeeringGateways Failed with error  " + error);
     }
@@ -134,8 +140,12 @@ async function link2VCN(requestor: string, acceptor: string) {
         if (acceptorSideLPGId != undefined &&
             acceptorSideLPGId.id.length > 0) {
             console.log(`acceptorSideLPGId= ${acceptorSideLPGId.id}`)
-            await getLPG(requestor,requestorSideLPGId.id)
-            await getLPG(acceptor,acceptorSideLPGId.id)
+            await getLPG(requestor, requestorSideLPGId.id)
+            await getLPG(acceptor, acceptorSideLPGId.id)
+            console.log(`Ready to connect:\n${requestorSideLPGId.id} with ${acceptorSideLPGId.id}`)
+            console.log(`With:  linkLPG("${requestor}", "${requestorSideLPGId.id}","${acceptorSideLPGId.id})`)
+            console.log(`Wait ${WAITs}s for being sure the LPGs are available`)
+            await sleep(WAITs*1000);
             await linkLPG(requestor, requestorSideLPGId.id, acceptorSideLPGId.id)
         }
     }
@@ -143,3 +153,15 @@ async function link2VCN(requestor: string, acceptor: string) {
 
 }
 // usage link2VCN("newtenancy","othertenancy")
+const args = process.argv.slice(2);
+if (args.length == 2 && typeof args[0] == "string" && typeof args[1] == "string") {
+    console.log(`Building a LPG for ${args[0]}↔${args[1]} `);
+    link2VCN(args[0], args[1]);
+} else if (args.length == 1 && typeof args[0] == "string") {
+    console.log(getRequestorLPGUniversal(db, args[0]))
+} else {
+    console.log("for retrieving the universal requestor")
+    console.log("node --loader ts-node/esm lpg.ts  newtenancy ")
+    console.log("for peering two tenancies")
+    console.log("node --loader ts-node/esm lpg.ts  newtenancy othertenancy");
+}
