@@ -13,7 +13,7 @@ export type DB = typeof db;
 export type OCITenancy = typeof db[0];
 
 const configurationFilePath = "~/.oci/config";
-const WAITs = 15;
+const WAITs = 10;
 
 // Create a default authentication provider that uses the DEFAULT
 // profile in the configuration file.
@@ -131,7 +131,7 @@ async function getLPG(tenancy: string, ocid: string) {
 }
 
 async function link2VCN(requestor: string, acceptor: string) {
-    createPolicyAcceptorLPG(requestor, acceptor)
+    await createPolicyAcceptorLPG(requestor, acceptor)
     const requestorSideLPGId = await createAcceptorLPG(requestor, `lpg-${requestor}-${acceptor}`)
     if (requestorSideLPGId != undefined &&
         requestorSideLPGId.id.length > 0) {
