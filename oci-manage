@@ -328,7 +328,7 @@ function init_set_iptables() {
   fi
 }
 
-function i() {
+function init_set_iptables_members() {
   if [ "$#" -ne 0 ]; then
     echo "Illegal number of parameters:" && echo "    usage init_set_iptables_members"
   else
@@ -367,6 +367,17 @@ function cluster_ssh_set_admin_keys() {
   sudo rm /tmp/authorized_keys
 }
 
+function cluster_delete_node() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_delete_node host"
+  else
+    NODE_ID=$1
+    kubectl cordon $NODE_ID
+    kubectl drain $NODE_ID
+    kubectl delete node $NODE_ID
+    cluster_reset_member $NODE_ID
+  fi
+}
 function cluster_iptables_flush() {
   for MEMBER in $CLUSTER_MEMBERS; do
     echo $MEMBER
@@ -384,9 +395,12 @@ function cluster_reset_storage() {
     done
   fi
 }
-function cluster_reset_members() {
-  for MEMBER in $CLUSTER_MEMBERS; do
-    echo $MEMBER
+
+function cluster_reset_member() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_reset_member member"
+  else
+    MEMBER=$1
     ssh root@$MEMBER "systemctl stop docker; kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock && \
         rm -rf ~/.ku* && \
         rm -rf /etc/systemd/system/kubelnet.service.d && \
@@ -402,6 +416,12 @@ function cluster_reset_members() {
         rm -rf /home/$USER/.kube && \
         rm -f /etc/systemd/resolved.conf.d/k8s-resolve.conf && \
         reboot"
+  fi
+}
+function cluster_reset_members() {
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    cluster_reset_member $MEMBER
   done
 }
 
@@ -790,19 +810,21 @@ function get_gateway_from_ip() {
 }
 
 function init_create_private_interface() {
+  PREFIX=${1:0:4}
   if [ "$#" -ne 3 ]; then
-    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface hostname macaddress privateipaddress"
+    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface hostname macaddress privateipaddress" && echo "    Use it only for OCIs hosts"
   else
-    HOST=$1
-    MAC=$2
-    IP=$3
-    GW=$(get_gateway_from_ip "$IP")
-    SUBNET=$(get_subnet_from_ip "$IP")
-    INTERFACE=$(get_remote_interface $HOST "$MAC")
-    ROUTES_JSON=$(init_get_private_routes "$IP")
-    # echo $INTERFACE $SUBNET $GW
-    # echo $ROUTES_JSON
-    cat <<EOF | yq -p json -o yaml - >/tmp/$HOST.yaml
+    if [ "$PREFIX" == "oci-" ]; then
+      HOST=$1
+      MAC=$2
+      IP=$3
+      GW=$(get_gateway_from_ip "$IP")
+      SUBNET=$(get_subnet_from_ip "$IP")
+      INTERFACE=$(get_remote_interface $HOST "$MAC")
+      ROUTES_JSON=$(init_get_private_routes "$IP")
+      # echo $INTERFACE $SUBNET $GW
+      # echo $ROUTES_JSON
+      cat <<EOF | yq -p json -o yaml - >/tmp/$HOST.yaml
 {
   "network": {
     "version": 2,
@@ -819,8 +841,11 @@ function init_create_private_interface() {
   }
 }
 EOF
-    scp -4 /tmp/$HOST.yaml root@$HOST:/etc/netplan/$PRIVATE_INTERFACE_FILE
-    ssh -4 root@$HOST "netplan apply"
+    #scp -4 /tmp/$HOST.yaml root@$HOST:/etc/netplan/$PRIVATE_INTERFACE_FILE
+    #ssh -4 root@$HOST "netplan apply"
+    else
+    echo "Illegal host:" && echo "    Use it only for OCIs hosts"
+    fi
   fi
 }
 function get_remote_interface() {
@@ -1170,10 +1195,10 @@ function cluster_deploy_hosts() {
   else
     for MEMBER in $CLUSTER_MEMBERS; do
       #if [ ${MEMBER:0:4} == "oci-" ]; then    #for oci only
-        sed -e '/^127\..*/d' -e '/^[[:space:]]*$/d' /etc/hosts >/tmp/$MEMBER
-        echo "127.0.1.1    $MEMBER     $MEMBER" >>/tmp/$MEMBER
-        scp /tmp/$MEMBER root@$MEMBER:/etc/hosts
-        rm /tmp/$MEMBER
+      sed -e '/^127\..*/d' -e '/^[[:space:]]*$/d' /etc/hosts >/tmp/$MEMBER
+      echo "127.0.1.1    $MEMBER     $MEMBER" >>/tmp/$MEMBER
+      scp /tmp/$MEMBER root@$MEMBER:/etc/hosts
+      rm /tmp/$MEMBER
       #fi
     done
   fi
@@ -1269,7 +1294,7 @@ function wg_meshconf_addpeer() {
     ALL_PEERS_SORTED=$(wg_meshconf_get_all_peers_sorted)
     GREATEST_PEER_EXCEPT_GW=$(wg_meshconf_get_all_peers_sorted_except_gw)
     NEW_PEER=$(echo $GREATEST_PEER_EXCEPT_GW | awk -F "." '{printf "%d.%d.%d.%d",$1,$2,$3,($4+1)}')
-    SUBNET=`get_subnet_16 $PEER_NAME`
+    SUBNET=$(get_subnet_16 $PEER_NAME)
     echo "Adding $NEW_PEER/32"
     docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT --allowedips $SUBNET
   fi
@@ -2632,6 +2657,7 @@ function cluster_help() {
   echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
   echo "cluster_copy_file_as_current_user:                 copy local file to each member"
   echo "cluster_copy_file_as_root:                         copy local file as root to each member"
+  echo "cluster_delete_node:                               delete a k8s node"
   echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
   echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
   echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
@@ -2663,6 +2689,7 @@ function cluster_help() {
   echo "cluster_reboot:                                    reboot all the cluster"
   echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
   echo "cluster_reset_control_plane:                       delete the control plane"
+  echo "cluster_reset_member:                              reset one member (without leaving the cluster)"
   echo "cluster_reset_members:                             delete all members"
   echo "cluster_reset_remove_azure_dns_issuer:             remove the letsencrypt azure issuers"
   echo "cluster_reset_remove_oci_dns_issuer:               remove the OCI Letsencrypt certificate issuers"
