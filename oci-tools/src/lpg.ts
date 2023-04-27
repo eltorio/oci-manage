@@ -84,7 +84,7 @@ async function createPolicyAcceptorLPG(requestor: string, acceptor: string) {
 
         // Send request to the Client.
         const createPolicyResponse = await client.createPolicy(createPolicyRequest);
-        console.log(createPolicyResponse)
+        // console.log(createPolicyResponse)
     } catch (error) {
         console.log("createPolicy Failed with error  " + error);
     }
