@@ -743,7 +743,7 @@ protocol kernel {
 }
 ```
 ## 5.14. Wireguard
-Un réseau maillé avec Wireguard permet de s'affranchir de lien Oracle LPG et éventuellement d'ouvrir le cluster à l'extérieur de l'infrastructure Oracle  
+Un réseau maillé avec Wireguard permet de s'affranchir de lien Oracle LPG et éventuellement d'ouvrir le cluster à l'extérieur de l'infrastructure Oracle, le metric de chaque route est fixé à 100 pour privilegier les routes via des passerelles d'appairage local
 
 ### 5.14.1. Initialisation
 ```sh

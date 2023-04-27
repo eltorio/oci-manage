@@ -896,7 +896,7 @@ sudo birdc configure
 
 ## 5.14. Wireguard
 
-A mesh network with Wireguard makes it possible to overcome Oracle LPG link and possibly open the cluster outside the Oracle infrastructure
+A mesh network with Wireguard makes it possible to overcome Oracle LPG link and possibly open the cluster outside the Oracle infrastructure, the metric of each route is set at 100 to favor routes via local peering gateways
 
 ### 5.14.1. Initialization
 

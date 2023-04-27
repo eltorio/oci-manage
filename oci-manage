@@ -68,7 +68,7 @@ DASHBOARD_DNS_NAMES=("dashboard.fqdn" "dashboard.kube-dashboard.svc.cluster.loca
 LONGHORN_DASHBOARD_DNS_NAMES=("longhorn.fqdn" "longhorn-frontend.kube-system.svc.cluster.local")
 STORAGE_BACKEND="longhorn"
 STORAGE_LOCATION="/storage"
-JIVA_REPLICAS=1
+STORAGE_REPLICAS=2
 LONGHORN_VERSION="1.4.1"
 GRAFANA_PROMETHEUS_USERNAME="123456"
 GRAFANA_PROMETHEUS_PASSWORD="MTFhM2UyMjkwODQzNDliYzI1ZDk3ZTI5MzkzY2VkMWQgIC0K"
@@ -87,6 +87,8 @@ SUPER_PRIVATE_USER=ubuntu
 SSH_ROOT_KEYS=("ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYT124UWsqs1kzErc9bIOpA= me@myhost")
 SSH_ROOT_KEYS+=("ecdsa-sha2-nistp256 AAAAE2VjZHNhL6780iaBp9aV+ZzlLsF6tm3Bm0= you@ahost")
 WG_DATABASE="./wg"
+WG_TABLE="main"
+WG_MARK="0x672"
 ############### end of default values
 
 . ~/oci-manage-config.sh
@@ -1296,7 +1298,7 @@ function wg_meshconf_addpeer() {
     NEW_PEER=$(echo $GREATEST_PEER_EXCEPT_GW | awk -F "." '{printf "%d.%d.%d.%d",$1,$2,$3,($4+1)}')
     SUBNET=$(get_subnet_16 $PEER_NAME)
     echo "Adding $NEW_PEER/32"
-    docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT --allowedips $SUBNET
+    docker run -v $WG_DATABASE:/home/wgmeshconf -it highcanfly/wg-meshconf addpeer $PEER_NAME --fwmark "$WG_MARK" --table $WG_TABLE --address $NEW_PEER/32 --endpoint $PEER_FQDN --listenport $PEER_UDP_PORT --allowedips $SUBNET
   fi
   cd $PWD
 }
@@ -1313,17 +1315,28 @@ function wg_meshconf_deploy_config() {
     cd ~
     wg_meshconf_init
     docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
+    echo "$WG_TABLE wireguard" > /tmp/wireguard.conf
+    sudo cp /tmp/wireguard.conf /etc/iproute2/rt_tables.d/wireguard.conf
+    rm /tmp/wireguard.conf
+    sudo cp ~/miscellaneous/wg-quick-oci /usr/bin/
+    sudo cp ~/miscellaneous/wg-quick-oci.target /lib/systemd/system/
+    sudo cp ~/miscellaneous/wg-quick-oci@.service /lib/systemd/system/
+    sudo systemctl daemon-reload
     for MEMBER in $(wg_meshconf_get_fqdns); do
       MEMBER_SHORT=$(echo -n $MEMBER | cut -d"." -f1)
       if [ -f "wg/output/$MEMBER_SHORT.conf" ]; then
         echo $MEMBER
         scp wg/output/$MEMBER_SHORT.conf root@$MEMBER:/etc/wireguard/wg0.conf
-        ssh root@$MEMBER "systemctl enable wg-quick@wg0 ; systemctl restart wg-quick@wg0"
+        scp /etc/iproute2/rt_tables.d/wireguard.conf root@$MEMBER:/etc/iproute2/rt_tables.d/wireguard.conf
+        scp ~/miscellaneous/wg-quick-oci root@$MEMBER:/usr/bin/wg-quick-oci
+        scp ~/miscellaneous/wg-quick-oci.target root@$MEMBER:/lib/systemd/system/wg-quick-oci.target
+        scp ~/miscellaneous/wg-quick-oci@.service root@$MEMBER:/lib/systemd/system/wg-quick-oci@.service
+        ssh root@$MEMBER "systemctl daemon-reload; systemctl enable wg-quick-oci@wg0 ; systemctl restart wg-quick-oci@wg0"
       fi
     done
     sudo cp wg/output/$CONTROL_PLANE_LOCAL.conf /etc/wireguard/wg0.conf
-    sudo systemctl enable wg-quick@wg0
-    sudo systemctl restart wg-quick@wg0
+    sudo systemctl enable wg-quick-oci@wg0
+    sudo systemctl restart wg-quick-oci@wg0
     #### private
     if [[ $(type -t private_wg_deploy) == function ]]; then
       private_wg_deploy
@@ -1557,7 +1570,7 @@ function cluster_init_install_longhorn() {
     helm repo add longhorn https://charts.longhorn.io
     helm repo update
     helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version $LONGHORN_VERSION \
-      --set persistence.defaultClassReplicaCount=1,defaultSettings.defaultReplicaCount=1,defaultSettings.defaultDataPath=$STORAGE_LOCATION
+      --set persistence.defaultClassReplicaCount=$STORAGE_REPLICAS,defaultSettings.defaultReplicaCount=$STORAGE_REPLICAS,defaultSettings.defaultDataPath=$STORAGE_LOCATION
   fi
 }
 
@@ -1570,7 +1583,7 @@ function cluster_init_install_openebs() {
     helm install openebs openebs/openebs --namespace kube-openebs --create-namespace \
       --set legacy.enabled=false \
       --set jiva.enabled=true \
-      --set jiva.replicas=$JIVA_REPLICAS \
+      --set jiva.replicas=$STORAGE_REPLICAS \
       --set jiva.defaultStoragePath=$STORAGE_LOCATION \
       --set openebs-ndm.enabled=true \
       --set localpv-provisioner.enabled=true \
