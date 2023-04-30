@@ -759,7 +759,7 @@ spec:
           pathType: Prefix
           backend:
             service:
-              name: briacwp-wordpress
+              name: monsite-wordpress
               port:
                 number: 80
   tls:
