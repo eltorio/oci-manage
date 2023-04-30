@@ -71,7 +71,7 @@
       - [5.12.2.4. Uninstalling](#51224-uninstalling)
     - [5.12.3. Automatic deployment of CNAME Cloudflare](#5123-automatic-deployment-of-cname-cloudflare)
       - [5.12.3.1. Installation](#51231-installation)
-      - [5.12.3.2. Use](#51232-use)
+      - [5.12.3.2. Example of use](#51232-example-of-use)
       - [5.12.3.3. Uninstallation](#51233-uninstallation)
   - [5.13. Bird on the control-plane](#513-bird-on-the-control-plane)
   - [5.14. Wireguard](#514-wireguard)
@@ -885,35 +885,41 @@ Adjust variables `CF_API_KEY` `CF_API_EMAIL` and `CF_DOMAINS`
 cluster_cloudflare_external_dns
 ```
 
-#### 5.12.3.2. Use
+#### 5.12.3.2. Example of use
+
+```sh
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+helm install --namespace monsite --create-namespace monsite bitnami/wordpress --set volumePermissions.enabled=true,image.debug=true
+```
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: monsite-ingress
+  name: wp-ingress
   namespace: monsite
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging-azure
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    external-dns.alpha.kubernetes.io/target: 1.2.3.4
-    external-dns.alpha.kubernetes.io/hostname: monsite.example.com
+    external-dns.alpha.kubernetes.io/target: ha.cluster.fqdn
+    external-dns.alpha.kubernetes.io/hostname: monsite.example.org
     external-dns.alpha.kubernetes.io/ttl: "86400"
 spec:
   ingressClassName: traefik
   rules:
-  - host: monsite.example.com
+  - host: monsite.example.org
     http:
       paths:
         - path: /
           pathType: Prefix
           backend:
             service:
-              name: monsite
+              name: briacwp-wordpress
               port:
                 number: 80
   tls:
-  - hosts: [monsite.example.com]
+  - hosts: [monsite.example.org]
     secretName: monsite-tls-cert
 ```
 
