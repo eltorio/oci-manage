@@ -68,6 +68,10 @@
       - [5.12.2.2. Installation](#51222-installation)
       - [5.12.2.3. Utilisation](#51223-utilisation)
       - [5.12.2.4. Désinstallation](#51224-désinstallation)
+    - [5.12.3. Deploiement automatique de CNAME Cloudflare](#5123-deploiement-automatique-de-cname-cloudflare)
+      - [5.12.3.1. Installation](#51231-installation)
+      - [5.12.3.2. Utilisation](#51232-utilisation)
+      - [5.12.3.3. Désinstallation](#51233-désinstallation)
   - [5.13. Bird sur le control-plane](#513-bird-sur-le-control-plane)
   - [5.14. Wireguard](#514-wireguard)
     - [5.14.1. Initialisation](#5141-initialisation)
@@ -720,6 +724,46 @@ spec:
 #### 5.12.2.4. Désinstallation
 ```sh
 cluster_reset_remove_azure_dns_issuer
+```
+### 5.12.3. Deploiement automatique de CNAME Cloudflare
+#### 5.12.3.1. Installation
+Régler les variables `CF_API_KEY` `CF_API_EMAIL` et `CF_DOMAINS`
+```sh
+cluster_cloudflare_external_dns
+```
+#### 5.12.3.2. Utilisation
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monsite-ingress
+  namespace: monsite
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging-azure
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    external-dns.alpha.kubernetes.io/target: 1.2.3.4
+    external-dns.alpha.kubernetes.io/hostname: monsite.example.com
+    external-dns.alpha.kubernetes.io/ttl: "86400"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: monsite.example.com
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: monsite
+              port:
+                number: 80
+  tls:
+  - hosts: [monsite.example.com]
+    secretName: monsite-tls-cert
+```
+#### 5.12.3.3. Désinstallation
+```sh
+cluster_cloudflare_external_dns delete
 ```
 ## 5.13. Bird sur le control-plane
 TODO

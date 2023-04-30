@@ -31,6 +31,9 @@ AZURE_TENANT_ID="3ea6cdac-a005-4d3e-bff7-1a5dbfa4716b"
 OCI=~/bin/oci
 ARM_SRC=master
 CA_COMPANY="my"
+CF_API_KEY="21257c46300680ad3891126bd6d9896ee2c13181"
+CF_API_EMAIL="user@example.org"
+CF_DOMAINS=("example.org" "example.com")
 CLUSTER_AS=4201234567
 CLUSTER_MEMBERS='node2 node3 node4 node5 node6 node7 node8'
 CLUSTER_POOL_CIDR=172.24.0.0/13
@@ -57,6 +60,7 @@ X86_64_SRC=node4
 DOCKER_REGISTRY_HOST=docker-registry.local
 DOCKER_REGISTRY_UI_DNS_NAMES=("docker-registry-ui.kube-system.svc.cluster.local")
 HUBBLE_DASHBOARD_DNS_NAMES=("hubble-ui.fqdn" "hubble-ui.kube-system.svc.cluster.local")
+HELM_DASHBOARD_DNS_NAMES=("helm.fqdn" "helm.helm-dashboard.svc.cluster.local")
 ROOT_CA="LS0tLS1CRUdJTiBDRVJ198Z1290ZNKJNDQSQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 TRAEFIK_DASHBOARD_DNS_NAMES=("traefik-dashboard.fqdn" "traefik.kube-traefik.svc.cluster.local")
 # cat ~/pki/ca.crt | base64 | tr -d '\n'
@@ -108,6 +112,11 @@ TRAEFIK_DASHBOARD_DNS_NAMES_JS=$(
 HUBBLE_DASHBOARD_DNS_NAMES_JS=$(
   RES=""
   for NAME in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
+  echo "[${RES:0:-1}]"
+)
+HELM_DASHBOARD_DNS_NAMES_JS=$(
+  RES=""
+  for NAME in ${HELM_DASHBOARD_DNS_NAMES[@]}; do RES+="$NAME,"; done
   echo "[${RES:0:-1}]"
 )
 LONGHORN_DASHBOARD_DNS_NAMES_JS=$(
@@ -472,6 +481,7 @@ function cluster_init_create_control_plane() {
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  cluster_init_coredns_config
   cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
   cluster_init_create_ip_pool
 }
@@ -846,7 +856,7 @@ EOF
     #scp -4 /tmp/$HOST.yaml root@$HOST:/etc/netplan/$PRIVATE_INTERFACE_FILE
     #ssh -4 root@$HOST "netplan apply"
     else
-    echo "Illegal host:" && echo "    Use it only for OCIs hosts"
+      echo "Illegal host:" && echo "    Use it only for OCIs hosts"
     fi
   fi
 }
@@ -971,6 +981,7 @@ function init_get_private_routes() {
     IP=$1
     rm -f /tmp/$IP.tmp
     NEW_MEMBER_SUBNET="$(get_subnet_from_ip $IP)"
+    # echo "{\"to\":\"default\", \"via\": \"$MEMBER_GW\"}" >>/tmp/$IP.tmp
     for DEST_MEMBER in $K8S_CLUSTER_LONG; do
       DEST_MEMBER_SUBNET="$(get_subnet $DEST_MEMBER)"
       if [[ "$DEST_MEMBER" != "$IP" ]]; then
@@ -1315,7 +1326,7 @@ function wg_meshconf_deploy_config() {
     cd ~
     wg_meshconf_init
     docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
-    echo "$WG_TABLE wireguard" > /tmp/wireguard.conf
+    echo "$WG_TABLE wireguard" >/tmp/wireguard.conf
     sudo cp /tmp/wireguard.conf /etc/iproute2/rt_tables.d/wireguard.conf
     rm /tmp/wireguard.conf
     sudo cp ~/miscellaneous/wg-quick-oci /usr/bin/
@@ -1429,7 +1440,7 @@ EOF
 ---
 EOF
     kubectl apply -f /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
-    rm /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+    #rm /tmp/cluster_init_cilium_hubble_ui_ingress.yaml
   fi
 }
 
@@ -2552,6 +2563,88 @@ spec:
 EOF
 }
 
+function cluster_cloudflare_external_dns() {
+  if [ "$#" -ne 1 ]; then
+    ACTION=apply
+  else
+    ACTION=$1
+  fi
+  cat <<EOF >/tmp/cloudflare_external_dns.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: kube-system
+  name: external-dns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+rules:
+- apiGroups: [""]
+  resources: ["services","endpoints","pods"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["extensions","networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get","watch","list"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+- kind: ServiceAccount
+  name: external-dns
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: kube-system
+  name: external-dns
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: registry.k8s.io/external-dns/external-dns:v0.13.4
+        args:
+EOF
+  for DOMAIN in ${CF_DOMAINS[@]}; do
+    cat <<EOF >>/tmp/cloudflare_external_dns.yaml
+        - --domain-filter=$DOMAIN
+EOF
+  done
+  cat <<EOF >>/tmp/cloudflare_external_dns.yaml
+        - --source=ingress # service is also possible
+        - --provider=cloudflare
+        - --log-level=debug
+        env:
+        - name: CF_API_KEY
+          value: "$CF_API_KEY"
+        - name: CF_API_EMAIL
+          value: "$CF_API_EMAIL"
+EOF
+  kubectl $ACTION -f /tmp/cloudflare_external_dns.yaml
+  rm /tmp/cloudflare_external_dns.yaml
+}
+
 function oci-manage-copyright() {
   cat <<EOF
 oci-manage -- A library providing functions for building and managing
@@ -2660,12 +2753,62 @@ function cluster_iptables_open_ipv4_port() {
   fi
 }
 
+function cluster_install_helm_dashboard_ingress() {
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_install_helm_dashboard_ingress"
+  else
+    cat <<EOF >/tmp/helm-dashboard.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: helm-dashboard
+  namespace: helm-dashboard
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+spec:
+  rules:
+EOF
+    for HOST in ${HELM_DASHBOARD_DNS_NAMES[@]}; do
+      cat <<EOF >>/tmp/helm-dashboard.yaml
+    - host: $HOST
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: helm-dashboard
+                port:
+                  number: 8080
+EOF
+    done
+    cat <<EOF >>/tmp/helm-dashboard.yaml
+  tls:
+  - hosts: $HELM_DASHBOARD_DNS_NAMES_JS
+    secretName: helm-cert
+---
+EOF
+    kubectl apply -f /tmp/helm-dashboard.yaml
+    1rm /tmp/helm-dashboard.yaml
+  fi
+}
+
+function cluster_install_helm_dashboard() {
+  helm repo add komodorio https://helm-charts.komodor.io
+  helm repo update
+  helm upgrade --install helm-dashboard komodorio/helm-dashboard
+}
+
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
   echo "cluster_apt_install:                               install an apt package on all the cluster"
   echo "cluster_cilium_full_status:                        issue cilium status on each member"
   echo "cluster_cilium_hostip_all:                         get all cilium pods IPP"
+  echo "cluster_cloudflare_external_dns:                   create external dns for cloudflare dns 'needs CF_API_KEY and CF_API_EMAIL'"
   echo "cluster_copy_dir_as_root:                          copy local dir to remote dir (take care of the trailing slashes)"
   echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
   echo "cluster_copy_file_as_current_user:                 copy local file to each member"
@@ -2679,6 +2822,8 @@ function cluster_help() {
   echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"
   echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
+  echo "cluster_install_helm_dashboard:                    install the helm dashboard"
+  echo "cluster_install_helm_dashboard_ingress:            create an ingress for the helm dashboard"
   echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
   echo "cluster_init_coredns_config:                       create the initial coredns config with cluster.external zone"
   echo "cluster_init_create_control_plane_pool_kubernetes: create control plane with ipam=kubernetes"
