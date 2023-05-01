@@ -2814,25 +2814,27 @@ function cluster_iptables_open_ipv4_port() {
 }
 
 function cluster_install_helm_dashboard_ingress() {
-  if [ "$#" -ne 0 ]; then
-    echo "Illegal number of parameters:" && echo "    usage cluster_install_helm_dashboard_ingress"
+  if [ "$#" -ne 1 ]; then
+    ACTION=apply
   else
-    cat <<EOF >/tmp/helm-dashboard.yaml
+    ACTION=$1
+  fi
+  cat <<EOF >/tmp/helm-dashboard.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: helm-dashboard
   namespace: helm-dashboard
   annotations:
-    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
 EOF
-    for HOST in ${HELM_DASHBOARD_DNS_NAMES[@]}; do
-      cat <<EOF >>/tmp/helm-dashboard.yaml
+  for HOST in ${HELM_DASHBOARD_DNS_NAMES[@]}; do
+    cat <<EOF >>/tmp/helm-dashboard.yaml
     - host: $HOST
       http:
         paths:
@@ -2844,22 +2846,22 @@ EOF
                 port:
                   number: 8080
 EOF
-    done
-    cat <<EOF >>/tmp/helm-dashboard.yaml
+  done
+  cat <<EOF >>/tmp/helm-dashboard.yaml
   tls:
   - hosts: $HELM_DASHBOARD_DNS_NAMES_JS
     secretName: helm-cert
 ---
 EOF
-    kubectl apply -f /tmp/helm-dashboard.yaml
-    rm /tmp/helm-dashboard.yaml
-  fi
+  kubectl $ACTION -f /tmp/helm-dashboard.yaml
+  rm /tmp/helm-dashboard.yaml
+
 }
 
 function cluster_install_helm_dashboard() {
   helm repo add highcanfly https://helm-repo.highcanfly.club/
   helm repo update
-  helm upgrade --namespace helm-dashboard --create-namespace --install helm-dashboard highcanfly/helm-dashboard
+  helm upgrade --install --namespace helm-dashboard --create-namespace helm-dashboard highcanfly/helm-dashboard
 }
 
 function cluster_help() {
