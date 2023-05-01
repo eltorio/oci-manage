@@ -73,13 +73,14 @@
       - [5.12.3.1. Installation](#51231-installation)
       - [5.12.3.2. Example of use](#51232-example-of-use)
       - [5.12.3.3. Uninstallation](#51233-uninstallation)
-  - [5.13. Bird on the control-plane](#513-bird-on-the-control-plane)
+  - [5.13. Helm-Dashboard](#513-helm-dashboard)
   - [5.14. Wireguard](#514-wireguard)
     - [5.14.1. Initialization](#5141-initialization)
     - [5.14.2. Adding a node](#5142-adding-a-node)
     - [5.14.3. View Nodes](#5143-view-nodes)
     - [5.14.4. Deploy Nodes](#5144-deploy-nodes)
   - [5.15. File `README.md` multilingual](#515-file-readmemd-multilingual)
+  - [5.16. Bird on the control-plane](#516-bird-on-the-control-plane)
 
 ## 1.1. Objectives
 
@@ -929,28 +930,26 @@ spec:
 cluster_cloudflare_external_dns delete
 ```
 
-## 5.13. Bird on the control-plane
+## 5.13. Helm-Dashboard
 
-TODO
+[Komodor](https://komodor.io) provides a great tool for managing Helm charts in its cluster. Unfortunately they do not broadcast Docker image compatible with ARM64.\
+We have therefore adapted a [version](https://github.com/highcanfly-club/helm-dashboard.git).
 
 ```sh
-sudo apt install bird
-sudo systemctl enable bird
-sudo birdc configure
+helm repo add highcanfly https://helm-repo.highcanfly.club/
+helm repo update
+helm upgrade --namespace helm-dashboard --create-namespace --install helm-dashboard highcanfly/helm-dashboard
 ```
 
-    router id $CONTROL_PLANE_IP;
-    define my_as=$CLUSTER_AS;
-    protocol direct {
-            interface "ens1*", "cilium*", "lxc*";
-    }
-    protocol kernel {
-            persist off;
-            scan time 20;
-            learn;
-            import all;
-            export none;
-    }
+To deploy it with `oci-manage`:\
+Edit the variable `HELM_DASHBOARD_DNS_NAMES` then run:\\
+
+```sh
+cluster_install_helm_dashboard
+cluster_install_helm_dashboard_ingress
+```
+
+The dashboard can then be used on the DNS names configured in `HELM_DASHBOARD_DNS_NAMES`
 
 ## 5.14. Wireguard
 
@@ -993,3 +992,26 @@ md-translator set --region westeurope
 md-translator translate --src README.fr-FR.md --dest README.md --from fr-FR --to en-US
 #update manually the toc
 ```
+
+## 5.16. Bird on the control-plane
+
+TODO
+
+```sh
+sudo apt install bird
+sudo systemctl enable bird
+sudo birdc configure
+```
+
+    router id $CONTROL_PLANE_IP;
+    define my_as=$CLUSTER_AS;
+    protocol direct {
+            interface "ens1*", "cilium*", "lxc*";
+    }
+    protocol kernel {
+            persist off;
+            scan time 20;
+            learn;
+            import all;
+            export none;
+    }

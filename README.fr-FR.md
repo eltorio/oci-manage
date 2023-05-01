@@ -72,13 +72,14 @@
       - [5.12.3.1. Installation](#51231-installation)
       - [5.12.3.2. Exemple d'utilisation](#51232-exemple-dutilisation)
       - [5.12.3.3. Désinstallation](#51233-désinstallation)
-  - [5.13. Bird sur le control-plane](#513-bird-sur-le-control-plane)
+  - [5.13. Helm-Dashboard](#513-helm-dashboard)
   - [5.14. Wireguard](#514-wireguard)
     - [5.14.1. Initialisation](#5141-initialisation)
     - [5.14.2. Ajout d'un nœud](#5142-ajout-dun-nœud)
     - [5.14.3. Voir les nœuds](#5143-voir-les-nœuds)
     - [5.14.4. Déployer les nœuds](#5144-déployer-les-nœuds)
   - [5.15. Fichier `README.md` multilingue](#515-fichier-readmemd-multilingue)
+  - [5.16. Bird sur le control-plane](#516-bird-sur-le-control-plane)
 
 ## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
@@ -770,27 +771,22 @@ spec:
 ```sh
 cluster_cloudflare_external_dns delete
 ```
-## 5.13. Bird sur le control-plane
-TODO
+## 5.13. Helm-Dashboard
+[Komodor](https://komodor.io) fournit un excellent outil pour gérer les charts Helm dans son cluster. Malheureusment ils ne diffusent pas d'image Docker compatibles ARM64.  
+Nous avons donc adapté une [version](https://github.com/highcanfly-club/helm-dashboard.git).  
 ```sh
-sudo apt install bird
-sudo systemctl enable bird
-sudo birdc configure
+helm repo add highcanfly https://helm-repo.highcanfly.club/
+helm repo update
+helm upgrade --namespace helm-dashboard --create-namespace --install helm-dashboard highcanfly/helm-dashboard
 ```
+Pour la déployer avec `oci-manage`:\
+Éditez la variable `HELM_DASHBOARD_DNS_NAMES` puis exécutez:\
+
+```sh
+cluster_install_helm_dashboard
+cluster_install_helm_dashboard_ingress
 ```
-router id $CONTROL_PLANE_IP;
-define my_as=$CLUSTER_AS;
-protocol direct {
-        interface "ens1*", "cilium*", "lxc*";
-}
-protocol kernel {
-        persist off;
-        scan time 20;
-        learn;
-        import all;
-        export none;
-}
-```
+Le dashboard est alors utilisable sur les noms DNS configurés dans `HELM_DASHBOARD_DNS_NAMES` 
 ## 5.14. Wireguard
 Un réseau maillé avec Wireguard permet de s'affranchir de lien Oracle LPG et éventuellement d'ouvrir le cluster à l'extérieur de l'infrastructure Oracle, le metric de chaque route est fixé à 100 pour privilegier les routes via des passerelles d'appairage local
 
@@ -820,4 +816,25 @@ md-translator set --key d5a37213c945793e297f0f609e293f99
 md-translator set --region westeurope
 md-translator translate --src README.fr-FR.md --dest README.md --from fr-FR --to en-US
 #update manually the toc
+```
+## 5.16. Bird sur le control-plane
+TODO
+```sh
+sudo apt install bird
+sudo systemctl enable bird
+sudo birdc configure
+```
+```
+router id $CONTROL_PLANE_IP;
+define my_as=$CLUSTER_AS;
+protocol direct {
+        interface "ens1*", "cilium*", "lxc*";
+}
+protocol kernel {
+        persist off;
+        scan time 20;
+        learn;
+        import all;
+        export none;
+}
 ```

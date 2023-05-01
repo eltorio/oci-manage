@@ -2852,14 +2852,14 @@ EOF
 ---
 EOF
     kubectl apply -f /tmp/helm-dashboard.yaml
-    1rm /tmp/helm-dashboard.yaml
+    rm /tmp/helm-dashboard.yaml
   fi
 }
 
 function cluster_install_helm_dashboard() {
-  helm repo add komodorio https://helm-charts.komodor.io
+  helm repo add highcanfly https://helm-repo.highcanfly.club/
   helm repo update
-  helm upgrade --install helm-dashboard komodorio/helm-dashboard
+  helm upgrade --namespace helm-dashboard --create-namespace --install helm-dashboard highcanfly/helm-dashboard
 }
 
 function cluster_help() {
