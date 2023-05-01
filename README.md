@@ -942,7 +942,7 @@ helm upgrade --namespace helm-dashboard --create-namespace --install helm-dashbo
 ```
 
 To deploy it with `oci-manage`:\
-Edit the variable `HELM_DASHBOARD_DNS_NAMES` then run:\\
+Edit the variable `HELM_DASHBOARD_DNS_NAMES` then run:\
 
 ```sh
 cluster_install_helm_dashboard
