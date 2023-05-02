@@ -37,6 +37,7 @@ CF_DOMAINS=("example.org" "example.com")
 CLUSTER_AS=4201234567
 CLUSTER_MEMBERS='node2 node3 node4 node5 node6 node7 node8'
 CLUSTER_POOL_CIDR=172.24.0.0/13
+CLUSTER_HA_FQDN=ha.fqdn.com
 CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
 CONTROL_PLANE_IP=10.0.253.75
 CONTROL_PLANE_LOCAL=master
@@ -2864,6 +2865,46 @@ function cluster_install_helm_dashboard() {
   helm upgrade --install --namespace helm-dashboard --create-namespace helm-dashboard highcanfly/helm-dashboard
 }
 
+function cluster_create_ingress_cloudflare() {
+  if [ "$#" -ne 4 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_create_ingress_cloudflare host namespace service port"
+  else
+    HOST=$1
+    NAMESPACE=$2
+    SERVICE=$3
+    PORT=$4
+    cat <<EOF | kubectl -n $NAMESPACE apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $SERVICE-ingress
+  namespace: $NAMESPACE
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    external-dns.alpha.kubernetes.io/target: $CLUSTER_HA_FQDN
+    external-dns.alpha.kubernetes.io/hostname: $HOST
+    external-dns.alpha.kubernetes.io/ttl: "86400"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: $HOST
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $SERVICE
+              port:
+                number: $PORT
+  tls:
+  - hosts: [$HOST]
+    secretName: $HOST-tls-cert
+EOF
+  fi
+}
+
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -2875,6 +2916,7 @@ function cluster_help() {
   echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
   echo "cluster_copy_file_as_current_user:                 copy local file to each member"
   echo "cluster_copy_file_as_root:                         copy local file as root to each member"
+  echo "cluster_create_ingress_cloudflare:                 Create an ingress with letsencrypt certificate and create a CNAME on cloudflare"
   echo "cluster_delete_node:                               delete a k8s node"
   echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
   echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
