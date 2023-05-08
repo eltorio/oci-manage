@@ -64,3 +64,4 @@ go/
 .azure/commands/2023-04-21.17-49-39.role_assignment_create.1105275.log
 .azure/commands/2023-04-21.17-49-51.role_assignment_list.1105473.log
 .azure/telemetry/cache
+.redhat/anonymousId

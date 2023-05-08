@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dev-container-go
+  namespace: sandbox
+spec:
+  containers:
+  - name: dev-container-go
+    image: mcr.microsoft.com/devcontainers/go:1.20
+    command: ["/bin/sh", "-c", "while sleep 1000; do :; done"]
+    securityContext:
+      capabilities:
+          add: ["SYS_PTRACE"]
+      allowPrivilegeEscalation: true
+      readOnlyRootFilesystem: false

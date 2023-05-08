@@ -39,6 +39,8 @@ CLUSTER_MEMBERS='node2 node3 node4 node5 node6 node7 node8'
 CLUSTER_POOL_CIDR=172.24.0.0/13
 CLUSTER_HA_FQDN=ha.fqdn.com
 CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
+#set if needed to access service IP as EXTERNAL_CLUSTER_ZONE
+EXTERNAL_CLUSTER_ZONE=cluster.external
 CONTROL_PLANE_IP=10.0.253.75
 CONTROL_PLANE_LOCAL=master
 CONTROL_PLANE_PORT=6443
@@ -306,6 +308,22 @@ function get_host_arch() {
     echo $ARCH
   fi
 }
+
+function init_build_cri_dockerd() {
+  PWD=`pwd`
+  sudo apt-get -y install git golang-go
+  git clone https://github.com/Mirantis/cri-dockerd.git
+  cd cri-dockerd
+  mkdir bin
+  go get && go build -o bin/cri-dockerd
+  mkdir -p /usr/local/bin
+  sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
+  sudo cp -a packaging/systemd/* /etc/systemd/system
+  sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+  cd $PWD
+  rm -rf cri-dockerd
+}
+
 function init_install_cri_docker() {
   if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage init_install_cri_docker host"
@@ -456,6 +474,39 @@ function cluster_reset_control_plane() {
     sudo reboot
 }
 
+function cluster_init_create_control_plane_with_kube_proxy() {
+  if [ -z "${FUNCNAME[1]}" ]; then
+    echo "call cluster_init_create_control_plane"
+    IPAM="ipam.mode=cluster-pool,ipam.operator.clusterPoolIPv4PodCIDRList=$CLUSTER_POOL_CIDR"
+  else
+    echo "call cluster_init_create_control_plane_pool_kubernetes"
+    IPAM="ipam.mode=kubernetes"
+  fi
+  sudo mkdir -p /etc/kubernetes/pki/etcd
+  sudo mkdir -p /etc/kubernetes/manifests
+  sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/
+  sudo chown -R root:root /etc/kubernetes
+  sudo kubeadm init \
+    --ignore-preflight-errors=NumCPU \
+    --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR \
+    --cri-socket=unix:///run/cri-dockerd.sock \
+    --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS \
+    --node-name $HOSTNAME \
+    --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1)
+  set_systemd_resolve_to_k8s
+  rm -rf $HOME/.kube
+  mkdir -p $HOME/.kube
+  sudo mkdir -p /root/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  if [ ! -z "$EXTERNAL_CLUSTER_ZONE" ]; then
+    cluster_init_coredns_config
+  fi
+  cilium install --version $CILIUM_VERSION --helm-set k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
+  cluster_init_create_ip_pool
+}
+
 function cluster_init_create_control_plane() {
   if [ -z "${FUNCNAME[1]}" ]; then
     echo "call cluster_init_create_control_plane"
@@ -465,6 +516,7 @@ function cluster_init_create_control_plane() {
     IPAM="ipam.mode=kubernetes"
   fi
   sudo mkdir -p /etc/kubernetes/pki/etcd
+  sudo mkdir -p /etc/kubernetes/manifests
   sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/
   sudo chown -R root:root /etc/kubernetes
   sudo kubeadm init \
@@ -482,7 +534,9 @@ function cluster_init_create_control_plane() {
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
-  cluster_init_coredns_config
+  if [ -z "$EXTERNAL_CLUSTER_ZONE" ]; then
+    cluster_init_coredns_config
+  fi
   cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
   cluster_init_create_ip_pool
 }
@@ -524,7 +578,7 @@ function cluster_init_create_member() {
     TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
     DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
     echo $MEMBER
-    ssh root@$MEMBER "mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
+    ssh root@$MEMBER "mv /etc/resolv.conf /etc/resolv.conf.bak; ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf; mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; mkdir -p /etc/kubernetes/manifests; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
             --cri-socket=unix:///run/cri-dockerd.sock"
@@ -545,13 +599,19 @@ function cluster_init_create_members() {
 }
 
 function cluster_init_install_traefik_ingressroute() {
+  if [ "$#" -ne 1 ]; then
+    ACTION=apply
+  else
+    ACTION=$1
+  fi
   HTTPASSWD=$(printf "$TRAEFIK_ADMIN:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD")\n")
   HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | openssl base64)
   RES=""
   for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
   RULES="${RES:0:-3}"
+  MATCH="(((PathPrefix(\`/api\`) || PathPrefix(\`/dashboard\`))) && ($RULES) )"
   CN=${TRAEFIK_DASHBOARD_DNS_NAMES[0]}
-  cat <<EOF | kubectl apply -f -
+  cat <<EOF | kubectl $ACTION -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -593,8 +653,10 @@ metadata:
   name: traefik-dashboard
   namespace: kube-traefik
 spec:
+  entryPoints:
+    - websecure
   routes:
-    - match: ($RULES) && (PathPrefix(\`/api\`) || PathPrefix(\`/dashboard\`))
+    - match: $MATCH
       kind: Rule
       services:
       - name: api@internal
@@ -612,7 +674,7 @@ function cluster_init_install_traefik() {
   else
     helm repo add traefik https://traefik.github.io/charts
     helm repo update
-    helm install --create-namespace --namespace=kube-traefik \
+    helm install --create-namespace --namespace=kube-traefik --values miscellaneous/traefik-proxy.yaml \
       traefik traefik/traefik
   fi
 }
@@ -1512,7 +1574,7 @@ frontend traefik
 backend k8s-traefik
         timeout connect 1s
         timeout server 10s
-        server site traefik.kube-traefik.cluster.external:443 resolvers dns check inter 1000
+        server site traefik.kube-traefik.$EXTERNAL_CLUSTER_ZONE:443 send-proxy-v2 resolvers dns check inter 1000
 EOF
     sudo bash -c "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
     sudo systemctl daemon-reload
@@ -2755,7 +2817,7 @@ function cluster_coredns_add_k8s_external() {
   cluster_get_coredns_corefile | grep -qe '^\s*k8s_external '
   NOTALREADYDONE=$?
   if [ $NOTALREADYDONE -eq 1 ]; then
-    cluster_get_coredns_corefile | sed '/k8s_external cluster.external/a loadbalance'
+    cluster_get_coredns_corefile | sed "/k8s_external $EXTERNAL_CLUSTER_ZONE/a loadbalance"
   else
     cluster_get_coredns_corefile
   fi
@@ -2785,7 +2847,7 @@ data:
         loop
         reload
         loadbalance
-        k8s_external cluster.external
+        k8s_external $EXTERNAL_CLUSTER_ZONE
     }
 kind: ConfigMap
 metadata:
@@ -2921,7 +2983,7 @@ function cluster_help() {
   echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
   echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
   echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
-  echo "cluster_coredns_add_k8s_external:                  add cluster.external zone to coredns wich resolve all the services"
+  echo "cluster_coredns_add_k8s_external:                  add cluster.external/$EXTERNAL_CLUSTER_ZONE zone to coredns wich resolve all the services"
   echo "cluster_coredns_get_corefile:                      retrieve the coredns Corefile"
   echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"
