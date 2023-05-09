@@ -551,6 +551,9 @@ function cluster_init_create_post_install() {
   else
     cluster_init_install_certmanager
     cluster_init_install_traefik
+    cluster_init_cloudflare_dns_issuer
+    cluster_init_azure_dns_issuer
+    cluster_init_install_oci_dns_issuer
     if [ "$STORAGE_BACKEND" == "longhorn" ]; then
       cluster_init_install_longhorn
       cluster_init_install_longhorn_ingress
@@ -2681,7 +2684,7 @@ spec:
         cloudflare:
           email: $CF_API_EMAIL
           apiKeySecretRef:
-            name: cluster_init_cloudflare_dns_issuer
+            name: cloudflare-api-key-secret
             key: api-key
 EOF
 }
