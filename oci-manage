@@ -310,7 +310,7 @@ function get_host_arch() {
 }
 
 function init_build_cri_dockerd() {
-  PWD=`pwd`
+  PWD=$(pwd)
   sudo apt-get -y install git golang-go
   git clone https://github.com/Mirantis/cri-dockerd.git
   cd cri-dockerd
@@ -568,6 +568,9 @@ function cluster_init_create_post_install() {
     cilium hubble enable --ui
     cluster_init_cilium_hubble_ui_ingress
     cluster_run_on_all_members_as_root "systemctl restart systemd-resolved; systemctl restart haproxy"
+    if [[ $(type -t private_post_install) == function ]]; then
+      private_post_install
+    fi
     sudo systemctl restart systemd-resolved
     sudo systemctl restart haproxy
   fi
