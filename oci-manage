@@ -61,6 +61,9 @@ TRAEFIK_ADMIN='admin'
 X86_64_SRC=node4
 #TRAEFIK_ADMIN TRAEFIK_ADMIN_PASSWORD are also used for hubble-ui dashboard
 DOCKER_REGISTRY_HOST=docker-registry.local
+DOCKER_REGISTRY_UI_HOST=docker-registry-ui.local
+DOCKER_REGISTRY_USER=ociregistry
+DOCKER_REGISTRY_PASSWORD=oon.aing3eiP
 DOCKER_REGISTRY_UI_DNS_NAMES=("docker-registry-ui.kube-system.svc.cluster.local")
 HUBBLE_DASHBOARD_DNS_NAMES=("hubble-ui.fqdn" "hubble-ui.kube-system.svc.cluster.local")
 HELM_DASHBOARD_DNS_NAMES=("helm.fqdn" "helm.helm-dashboard.svc.cluster.local")
@@ -611,7 +614,7 @@ function cluster_init_install_traefik_ingressroute() {
     ACTION=$1
   fi
   HTTPASSWD=$(printf "$TRAEFIK_ADMIN:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD")\n")
-  HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | openssl base64)
+  HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | base64)
   RES=""
   for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
   RULES="${RES:0:-3}"
@@ -1481,11 +1484,11 @@ metadata:
   name: hubble-ui
   namespace: kube-system
   annotations:
-    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
 EOF
     for HOST in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do
@@ -1612,11 +1615,11 @@ metadata:
   name: longhorn-ui
   namespace: longhorn-system
   annotations:
-    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
 EOF
     for HOST in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do
@@ -2352,14 +2355,46 @@ function oci_action_instance() {
 }
 
 function dev_install_local_registry() {
+  if [ "$#" -ne 1 ]; then
+    ACTION=apply
+  else
+    ACTION=$1
+  fi
+  HTTPASSWD=$(printf "$DOCKER_REGISTRY_USER:$(openssl passwd -apr1 "$DOCKER_REGISTRY_PASSWORD")\n")
+  HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | base64)
   helm repo add twuni https://helm.twun.io
   helm repo add joxit https://helm.joxit.dev
   helm repo update
-  helm upgrade --install docker-registry twuni/docker-registry \
-    --create-namespace --namespace dev-container-registry \
-    --set replicaCount=1,persistence.enabled=false,persistence.deleteEnabled=true
-  helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.svc.cluster.local:5000
-  cat <<EOF | kubectl apply -f -
+  if [[ $ACTION == "apply" ]]; then
+    helm upgrade --install docker-registry twuni/docker-registry \
+      --create-namespace --namespace dev-container-registry \
+      --set replicaCount=1 \
+      --set persistence.enabled=false,persistence.deleteEnabled=true \
+      --set service.type=LoadBalancer
+    helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000
+  else
+    helm uninstall --namespace dev-container-registry docker-registry
+    helm uninstall --namespace dev-container-registry joxit
+  fi
+  cat <<EOF | kubectl $ACTION -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authsecret
+  namespace: dev-container-registry
+data:
+  users: $HTTPASSWD_B64
+---
+
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: basicauth
+  namespace: dev-container-registry
+spec:
+  basicAuth:
+    secret: authsecret
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -2383,11 +2418,11 @@ metadata:
   name: docker-registry
   namespace: dev-container-registry
   annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,dev-container-registry-basicauth@kubernetescrd
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
+  ingressClassName: traefik
   rules:
     - host: $DOCKER_REGISTRY_HOST
       http:
@@ -2403,11 +2438,42 @@ spec:
   - hosts: 
       - $DOCKER_REGISTRY_HOST
     secretName: docker-registry-cert
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: docker-registry-public-ui
+  namespace: dev-container-registry
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,kube-traefik-traefik-dashboard-auth@kubernetescrd
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: $DOCKER_REGISTRY_UI_HOST
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: joxit-docker-registry-ui-user-interface
+                port:
+                  number: 80
+  tls:
+  - hosts: 
+      - $DOCKER_REGISTRY_UI_HOST
+    secretName: docker-registry-public-ui-cert
 EOF
-  TRAEFIK_LB_IP=$(cluster_get_traefik_lb_ip)
-  sudo bash -c "echo '$TRAEFIK_LB_IP docker-registry.local' >> /etc/hosts"
-  cluster_deploy_hosts
-  cluster_init_docker_registry_ui_ingress
+  # TRAEFIK_LB_IP=$(cluster_get_traefik_lb_ip)
+  # sudo bash -c "echo '$TRAEFIK_LB_IP docker-registry.local' >> /etc/hosts"
+  # cluster_deploy_hosts
+  if [[ $ACTION == "apply" ]]; then
+    cluster_init_docker_registry_ui_ingress
+  else
+    kubectl delete namespace dev-container-registry
+  fi
 }
 
 function cluster_init_docker_registry_ui_ingress() {
@@ -2422,12 +2488,12 @@ metadata:
   name: docker-registry-ui
   namespace: dev-container-registry
   annotations:
-    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd
     traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
+  ingressClassName: traefik
   rules:
 EOF
     for HOST in ${DOCKER_REGISTRY_UI_DNS_NAMES[@]}; do

@@ -65,3 +65,5 @@ go/
 .azure/commands/2023-04-21.17-49-51.role_assignment_list.1105473.log
 .azure/telemetry/cache
 .redhat/anonymousId
+_sensitive_datas/_sensitive_datas.tar.xz
+.docker/
