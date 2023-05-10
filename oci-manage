@@ -62,6 +62,7 @@ X86_64_SRC=node4
 #TRAEFIK_ADMIN TRAEFIK_ADMIN_PASSWORD are also used for hubble-ui dashboard
 DOCKER_REGISTRY_HOST=docker-registry.local
 DOCKER_REGISTRY_UI_HOST=docker-registry-ui.local
+DOCKER_REGISTRY_PERSISTENT=false
 DOCKER_REGISTRY_USER=ociregistry
 DOCKER_REGISTRY_PASSWORD=oon.aing3eiP
 DOCKER_REGISTRY_UI_DNS_NAMES=("docker-registry-ui.kube-system.svc.cluster.local")
@@ -2369,7 +2370,7 @@ function dev_install_local_registry() {
     helm upgrade --install docker-registry twuni/docker-registry \
       --create-namespace --namespace dev-container-registry \
       --set replicaCount=1 \
-      --set persistence.enabled=false,persistence.deleteEnabled=true \
+      --set persistence.enabled=$DOCKER_REGISTRY_PERSISTENT,persistence.deleteEnabled=true \
       --set service.type=LoadBalancer
     helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000
   else
