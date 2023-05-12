@@ -2370,6 +2370,7 @@ function dev_install_local_registry() {
   if [[ $ACTION == "apply" ]]; then
     helm upgrade --install docker-registry twuni/docker-registry \
       --create-namespace --namespace dev-container-registry \
+      --set garbageCollect.enabled=true \
       --set replicaCount=1 \
       --set persistence.enabled=$DOCKER_REGISTRY_PERSISTENT,persistence.deleteEnabled=true \
       --set service.type=LoadBalancer
