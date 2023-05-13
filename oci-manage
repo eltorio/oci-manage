@@ -757,7 +757,7 @@ function cluster_init_install_traefik() {
   else
     helm repo add traefik https://traefik.github.io/charts
     helm repo update
-    helm install --create-namespace --namespace=kube-traefik \
+    helm upgrade --install --create-namespace --namespace=kube-traefik --values ./miscellaneous/haproxy-traefik-websecure.yaml \
       traefik traefik/traefik
   fi
 }
