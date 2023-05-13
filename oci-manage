@@ -2448,6 +2448,7 @@ function dev_install_local_registry() {
       --set replicaCount=1 \
       --set persistence.enabled=$DOCKER_REGISTRY_PERSISTENT,persistence.deleteEnabled=true \
       --set service.type=LoadBalancer
+    cluster_create_local_registry_secret dev-container-registry
     helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000
   else
     helm uninstall --namespace dev-container-registry docker-registry
@@ -3125,12 +3126,12 @@ EOF
   fi
 }
 
-function cluster_create_local_registry() {
+function cluster_create_local_registry_secret() {
   if [ "$#" -ne 1 ]; then
-    echo "Illegal number of parameters:" && echo "    usage cluster_create_local_registry_credential namespace"
+    echo "Illegal number of parameters:" && echo "    usage cluster_create_local_registry_secret namespace"
   else
     NAMESPACE=$1
-    kubectl create secret -n $NAMESPACE docker-registry local_registry_credential --docker-server=$DOCKER_REGISTRY_HOST --docker-username=$DOCKER_REGISTRY_USER --docker-password=$DOCKER_REGISTRY_PASSWORD --docker-email=none@example.org
+    kubectl create secret -n $NAMESPACE docker-registry local-registry-credential --docker-server=$DOCKER_REGISTRY_HOST --docker-username=$DOCKER_REGISTRY_USER --docker-password=$DOCKER_REGISTRY_PASSWORD --docker-email=none@example.org
   fi
 }
 function cluster_help() {
@@ -3144,7 +3145,7 @@ function cluster_help() {
   echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
   echo "cluster_copy_file_as_current_user:                 copy local file to each member"
   echo "cluster_copy_file_as_root:                         copy local file as root to each member"
-  echo "cluster_create_local_registry:                     create a secret named local_registry_credential containing login to local registry"
+  echo "cluster_create_local_registry_secret:                     create a secret named local-registry-credential containing login to local registry"
   echo "cluster_create_ingress_cloudflare:                 Create an ingress with letsencrypt certificate and create a CNAME on cloudflare"
   echo "cluster_delete_node:                               delete a k8s node"
   echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
