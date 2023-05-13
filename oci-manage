@@ -2449,7 +2449,9 @@ function dev_install_local_registry() {
       --set persistence.enabled=$DOCKER_REGISTRY_PERSISTENT,persistence.deleteEnabled=true \
       --set service.type=LoadBalancer
     cluster_create_local_registry_secret dev-container-registry
-    helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000
+    helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui \
+        --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000 \
+        --set ui.catalogElementsLimit=999
   else
     helm uninstall --namespace dev-container-registry docker-registry
     helm uninstall --namespace dev-container-registry joxit
