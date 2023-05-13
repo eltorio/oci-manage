@@ -45,6 +45,7 @@ CONTROL_PLANE_IP=10.0.253.75
 CONTROL_PLANE_LOCAL=master
 CONTROL_PLANE_PORT=6443
 DNS_PUBLIC_ZONE=example.org
+DOCKER_RUNTIME=containerd
 IP_POOL=172.31.255.0/24
 LETSENCRYPT_USER="user@example.com"
 OCI_DB=~/oci.json
@@ -136,6 +137,11 @@ DOCKER_REGISTRY_UI_DNS_NAMES_JS=$(
   for NAME in ${DOCKER_REGISTRY_UI_DNS_NAMES[@]}; do RES+="$NAME,"; done
   echo "[${RES:0:-1}]"
 )
+if [[ $DOCKER_RUNTIME == "containerd" ]]; then
+  CRI_SOCKET="unix:///run/containerd/containerd.sock"
+else
+  CRI_SOCKET="unix:///run/cri-dockerd.sock"
+fi
 function create_admin_user_with_key() {
   if [ "$#" -ne 2 ]; then
     echo "Illegal number of parameters:" && echo "    usage create_admin_user_with_key username password"
@@ -164,7 +170,11 @@ function init_new_host() {
     init_deploy_admin_keys_to_admin_user "$HOST" "$USERNAME"
     init_set_ramdisk "$HOST"
     init_set_iptables "$HOST"
-    init_install_cri_docker "$HOST"
+    if [[ $DOCKER_RUNTIME == "containerd" ]]; then
+      init_install_cri_containerd "$HOST"
+    else
+      init_install_cri_docker "$HOST"
+    fi
     init_install_software "$HOST" "$USERNAME"
     init_install_fill_memory "$HOST"
     echo "###################################################"
@@ -328,6 +338,41 @@ function init_build_cri_dockerd() {
   rm -rf cri-dockerd
 }
 
+function cluster_update_k8s_pause() {
+    if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_update_k8s_pause version (ex 3.9)"
+  else
+    VERSION=$1
+    for MEMBER in $K8S_CLUSTER; do
+      echo $MEMBER
+      ssh root@$MEMBER "sed -ibak 's/sandbox_image.*pause.*/sandbox_image = \"registry.k8s.io\/pause:$VERSION\"/' /etc/containerd/config.toml"
+      ssh root@$MEMBER "systemctl restart containerd"
+    done
+
+  fi
+}
+function init_install_cri_containerd() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_install_cri_containerd host"
+  else
+    HOST="$1"
+    ssh root@$HOST "sed -ibak 's/^disabled_plugins = \[\"cri\"\]$/#disabled_plugins = \[\"cri\"\]/' /etc/containerd/config.toml"
+    ssh root@$HOST "grep -qxF '[plugins.\"io.containerd.grpc.v1.cri\"]' /etc/containerd/config.toml || echo -e '[plugins.\"io.containerd.grpc.v1.cri\"]\n  sandbox_image = \"registry.k8s.io/pause:3.9\"' >> /etc/containerd/config.toml "
+    ssh root@$HOST "systemctl disable cri-docker && systemctl disable cri-docker.socket && systemctl enable containerd && systemctl restart containerd"
+  fi
+}
+
+function cluster_init_install_cri_containerd() {
+  if [ "$#" -ne 0 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_init_install_cri_container"
+  else
+    for MEMBER in $K8S_CLUSTER; do
+      echo $MEMBER
+      init_install_cri_containerd $MEMBER
+    done
+
+  fi
+}
 function init_install_cri_docker() {
   if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage init_install_cri_docker host"
@@ -435,7 +480,7 @@ function cluster_reset_member() {
     echo "Illegal number of parameters:" && echo "    usage cluster_reset_member member"
   else
     MEMBER=$1
-    ssh root@$MEMBER "systemctl stop docker; kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock && \
+    ssh root@$MEMBER "systemctl stop docker; kubeadm reset -f --cri-socket=$CRI_SOCKET && \
         rm -rf ~/.ku* && \
         rm -rf /etc/systemd/system/kubelnet.service.d && \
         rm -rf /var/lib/kubelet/ && \
@@ -460,7 +505,7 @@ function cluster_reset_members() {
 }
 
 function cluster_reset_control_plane() {
-  sudo kubeadm reset -f --cri-socket=unix:///run/cri-dockerd.sock &&
+  sudo kubeadm reset -f --cri-socket=$CRI_SOCKET &&
     sudo rm -rf ~/.ku* &&
     sudo rm -rf /etc/systemd/system/kubelnet.service.d &&
     sudo rm -rf /var/lib/kubelet/ &&
@@ -493,7 +538,7 @@ function cluster_init_create_control_plane_with_kube_proxy() {
   sudo kubeadm init \
     --ignore-preflight-errors=NumCPU \
     --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR \
-    --cri-socket=unix:///run/cri-dockerd.sock \
+    --cri-socket=$CRI_SOCKET \
     --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS \
     --node-name $HOSTNAME \
     --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1)
@@ -527,7 +572,7 @@ function cluster_init_create_control_plane() {
     --skip-phases=addon/kube-proxy \
     --ignore-preflight-errors=NumCPU \
     --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR \
-    --cri-socket=unix:///run/cri-dockerd.sock \
+    --cri-socket=$CRI_SOCKET \
     --control-plane-endpoint=$CONTROL_PLANE_INTERNAL_ADDRESS \
     --node-name $HOSTNAME \
     --apiserver-advertise-address=$(/sbin/ip -o -4 addr list enp1s0 | awk '{print $4}' | cut -d/ -f1)
@@ -541,7 +586,10 @@ function cluster_init_create_control_plane() {
   if [ -z "$EXTERNAL_CLUSTER_ZONE" ]; then
     cluster_init_coredns_config
   fi
+  echo "Wait 1 minute for control plane being ready"
+  sleep 60
   cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
+  sleep 5
   cluster_init_create_ip_pool
 }
 
@@ -592,7 +640,7 @@ function cluster_init_create_member() {
     ssh root@$MEMBER "mv /etc/resolv.conf /etc/resolv.conf.bak; ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf; mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; mkdir -p /etc/kubernetes/manifests; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
-            --cri-socket=unix:///run/cri-dockerd.sock"
+            --cri-socket=$CRI_SOCKET"
     sudo scp /root/.kube/config root@$MEMBER:/root/.kube/config
     sudo scp /etc/systemd/resolved.conf.d/k8s-resolve.conf root@$MEMBER:/etc/systemd/resolved.conf.d/k8s-resolve.conf
     ssh root@$MEMBER "systemctl restart systemd-resolved"
@@ -2371,6 +2419,7 @@ function dev_install_local_registry() {
     helm upgrade --install docker-registry twuni/docker-registry \
       --create-namespace --namespace dev-container-registry \
       --set garbageCollect.enabled=true \
+      --set image.tag=latest \
       --set replicaCount=1 \
       --set persistence.enabled=$DOCKER_REGISTRY_PERSISTENT,persistence.deleteEnabled=true \
       --set service.type=LoadBalancer
@@ -3083,6 +3132,8 @@ function cluster_help() {
   echo "cluster_init_create_members:                       join all members to k8s cluster"
   echo "cluster_init_create_post_install:                  run post install deployement (certmanager, traefik, dashboard)"
   echo "cluster_init_install_certmanager:                  deploy cert-manager with ca"
+  echo "init_install_cri_containerd:                       disable cri-dockerd and enable cri-containerd"
+  echo "cluster_init_install_cri_containerd:               install cri-containerd"
   echo "cluster_init_install_cri_docker:                   install cri_docker on arm64 only"
   echo "cluster_init_install_dashboard:                    deploy dashboard"
   echo "cluster_init_azure_dns_issuer:                     install letsencrypt-azure and letsencrypt-staging-azure clusterissuer against Azure DNS zone"
@@ -3109,6 +3160,7 @@ function cluster_help() {
   echo "cluster_test_tcp_port:                             open a tcp server and try to reach it"
   echo "cluster_test_udp_port:                             open a udp server and try to reach it"
   echo "cluster_traefik_launch_simple_proxy:               lauche simpleproxy from private ip to traefik loadbalancer"
+  echo "cluster_update_k8s_pause:                          update registry.k8s.io/pause to the given version"
   echo "create_admin_user_with_key:                        create an admin user with its home directory and a ssh key"
   echo "dashboard_get_token:                               retrieve dashboard administrator token"
   echo "dev_install_local_registry                         create a local docker registry without pvc for developpement (docker-registry.local)"

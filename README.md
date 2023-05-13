@@ -119,6 +119,8 @@ Each member has his own "location", he has deployed one, two, three or four VMs 
 | routing | PMO |
 | Connections | VXLAN |
 | VPN | IKEv2 |
+| IRC | cri-containerd or Mirantis cri-docker |
+By default the CRI (container runtime interface) is defined with the internal plugin of containerd, to use cri-docker set the DOCKER_RUNTIME variable to cri-docker
 
 ### 1.3.3. Creating instances *Nodes*
 
@@ -942,7 +944,7 @@ helm upgrade --namespace helm-dashboard --create-namespace --install helm-dashbo
 ```
 
 To deploy it with `oci-manage`:\
-Edit the variable `HELM_DASHBOARD_DNS_NAMES` then run:\
+Edit the variable `HELM_DASHBOARD_DNS_NAMES` then run:\\
 
 ```sh
 cluster_install_helm_dashboard

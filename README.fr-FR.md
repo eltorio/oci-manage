@@ -110,6 +110,8 @@ Chaque membre a sa propre "location", il a déployé une, deux, trois ou quatre 
 | routage    | BGP                |
 | Connexions | VXLAN              |
 | VPN        | IKEv2              |
+| CRI        | cri-containerd ou Mirantis cri-docker |
+Par défaut le CRI (container runtime interface) est défini avec le plugin interne de containerd, pour utiliser cri-docker définissez la variable DOCKER_RUNTIME sur cri-docker
  
 ### 1.3.3. Création des instances *les nœuds*
 Chaque nœud est soit:
