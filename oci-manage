@@ -339,7 +339,7 @@ function init_build_cri_dockerd() {
 }
 
 function cluster_update_k8s_pause() {
-    if [ "$#" -ne 1 ]; then
+  if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_update_k8s_pause version (ex 3.9)"
   else
     VERSION=$1
@@ -535,6 +535,14 @@ function cluster_init_create_control_plane_with_kube_proxy() {
   sudo mkdir -p /etc/kubernetes/manifests
   sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/
   sudo chown -R root:root /etc/kubernetes
+  if [[ $DOCKER_RUNTIME == "containerd" ]]; then
+    sudo systemctl disable cri-docker.service
+    sudo systemctl disable cri-docker.socket
+  else
+    sudo systemctl daemon-reload
+    sudo systemctl enable cri-docker.service
+    sudo systemctl enable --now cri-docker.socket
+  fi
   sudo kubeadm init \
     --ignore-preflight-errors=NumCPU \
     --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR \
@@ -568,6 +576,14 @@ function cluster_init_create_control_plane() {
   sudo mkdir -p /etc/kubernetes/manifests
   sudo cp -av /home/$USER/pki/* /etc/kubernetes/pki/
   sudo chown -R root:root /etc/kubernetes
+  if [[ $DOCKER_RUNTIME == "containerd" ]]; then
+    sudo systemctl disable cri-docker.service
+    sudo systemctl disable cri-docker.socket
+  else
+    sudo systemctl daemon-reload
+    sudo systemctl enable cri-docker.service
+    sudo systemctl enable --now cri-docker.socket
+  fi
   sudo kubeadm init \
     --skip-phases=addon/kube-proxy \
     --ignore-preflight-errors=NumCPU \
@@ -588,6 +604,9 @@ function cluster_init_create_control_plane() {
   fi
   echo "Wait 1 minute for control plane being ready"
   sleep 60
+  if [ ! -z "$EXTERNAL_CLUSTER_ZONE" ]; then
+    cluster_init_coredns_config
+  fi
   cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true
   sleep 5
   cluster_init_create_ip_pool
@@ -637,6 +656,11 @@ function cluster_init_create_member() {
     TOKEN=$(sudo kubeadm token create --print-join-command | awk '{print $5}')
     DISCOVERY_TOKEN_HASH=$(sudo kubeadm token create --print-join-command | awk '{print $7}')
     echo $MEMBER
+    if [[ $DOCKER_RUNTIME == "containerd" ]]; then
+      ssh root@$MEMBER "systemctl disable cri-docker.service && systemctl disable cri-docker.socket"
+    else
+      ssh root@$MEMBER "systemctl daemon-reload && systemctl enable cri-docker.service && systemctl enable --now cri-docker.socket"
+    fi
     ssh root@$MEMBER "mv /etc/resolv.conf /etc/resolv.conf.bak; ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf; mkdir -p /storage ; mkdir -p /etc/systemd/resolved.conf.d ; mkdir -p /root/.kube ; chmod go-rwx /root/.kube; rm -rf /etc/kubernetes ; mkdir -p /etc/kubernetes/manifests; kubeadm join $CONTROL_PLANE_INTERNAL_ADDRESS:6443 \
             --token $TOKEN \
             --discovery-token-ca-cert-hash $DISCOVERY_TOKEN_HASH \
@@ -733,7 +757,7 @@ function cluster_init_install_traefik() {
   else
     helm repo add traefik https://traefik.github.io/charts
     helm repo update
-    helm install --create-namespace --namespace=kube-traefik --values miscellaneous/traefik-proxy.yaml \
+    helm install --create-namespace --namespace=kube-traefik \
       traefik traefik/traefik
   fi
 }
@@ -885,6 +909,7 @@ function cluster_init_create_ip_pool() {
 function cluster_delete_ip_pool() {
   _get_pool_yaml | kubectl delete -f -
 }
+
 function cluster_init_install_cri_docker() {
   if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_init_install_cri_docker member"
@@ -3100,6 +3125,14 @@ EOF
   fi
 }
 
+function cluster_create_local_registry() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_create_local_registry_credential namespace"
+  else
+    NAMESPACE=$1
+    kubectl create secret -n $NAMESPACE docker-registry local_registry_credential --docker-server=$DOCKER_REGISTRY_HOST --docker-username=$DOCKER_REGISTRY_USER --docker-password=$DOCKER_REGISTRY_PASSWORD --docker-email=none@example.org
+  fi
+}
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -3111,6 +3144,7 @@ function cluster_help() {
   echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
   echo "cluster_copy_file_as_current_user:                 copy local file to each member"
   echo "cluster_copy_file_as_root:                         copy local file as root to each member"
+  echo "cluster_create_local_registry:                     create a secret named local_registry_credential containing login to local registry"
   echo "cluster_create_ingress_cloudflare:                 Create an ingress with letsencrypt certificate and create a CNAME on cloudflare"
   echo "cluster_delete_node:                               delete a k8s node"
   echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
