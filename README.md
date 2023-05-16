@@ -102,7 +102,7 @@ Each member has his own "location", he has deployed one, two, three or four VMs 
 
 ### 1.3.1. Structure of rentals
 
-*   using the same OIC region
+*   using the same OCI region
 *   a child bucket of the root bucket containing all objects
 *   a virtual private network with a CIDR of type 10.n.0.0/16
 *   Two subnets:
