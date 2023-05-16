@@ -28,58 +28,59 @@
   - [2.6. creation manuelle du fichier `/etc/hosts` du control plane](#26-creation-manuelle-du-fichier-etchosts-du-control-plane)
   - [2.7. definitions du firewall](#27-definitions-du-firewall)
 - [3. Installation des nœuds actifs (workers) depuis le control-plane](#3-installation-des-nœuds-actifs-workers-depuis-le-control-plane)
-- [4. oci-manage](#4-oci-manage)
-  - [4.1. déployer le fichier hosts](#41-déployer-le-fichier-hosts)
-  - [4.2. déployer le certificat racine](#42-déployer-le-certificat-racine)
-  - [4.3. déployer la configuration HAProxy](#43-déployer-la-configuration-haproxy)
-  - [4.4. mise à jour des paquets:](#44-mise-à-jour-des-paquets)
-  - [4.5. redémarrer le cluster](#45-redémarrer-le-cluster)
-  - [4.6. déployer un fichier](#46-déployer-un-fichier)
-  - [4.7. déployer le firewall](#47-déployer-le-firewall)
-  - [4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#48-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
-- [5. Déploiement du cluster](#5-déploiement-du-cluster)
-  - [5.1. Autorité de certification](#51-autorité-de-certification)
-    - [5.1.1. Déploiement de l'autorité de certification](#511-déploiement-de-lautorité-de-certification)
-  - [5.2. Control-Plane](#52-control-plane)
-  - [5.3. Résolution de nom](#53-résolution-de-nom)
-  - [5.4. Workers](#54-workers)
-  - [5.5. Effacement du cluster et résinstallation du cluster](#55-effacement-du-cluster-et-résinstallation-du-cluster)
-    - [5.5.1. Effacement](#551-effacement)
-    - [5.5.2. Réinstallation](#552-réinstallation)
-  - [5.6. Stockage persistant](#56-stockage-persistant)
-    - [5.6.1. Longhorn](#561-longhorn)
-    - [5.6.2. OpenEBS/jiva](#562-openebsjiva)
-  - [5.7. Gestionnaire de certificat](#57-gestionnaire-de-certificat)
-  - [5.8. Ouverture sur le monde extérieur](#58-ouverture-sur-le-monde-extérieur)
-  - [5.9. Accès aux tableaux de bord](#59-accès-aux-tableaux-de-bord)
-  - [5.10. Grafana](#510-grafana)
-  - [5.11. Registre local de container](#511-registre-local-de-container)
-    - [5.11.1. créer une résolution de nom spécifique:](#5111-créer-une-résolution-de-nom-spécifique)
-    - [5.11.2. Pour ajouter une image:](#5112-pour-ajouter-une-image)
-    - [5.11.3. Pour désinstaller le registre local:](#5113-pour-désinstaller-le-registre-local)
-    - [5.11.4. Interface utilisateur](#5114-interface-utilisateur)
-  - [5.12. Letsencrypt](#512-letsencrypt)
-    - [5.12.1. Oracle OCI DNS01](#5121-oracle-oci-dns01)
-      - [5.12.1.1. Installation](#51211-installation)
-      - [5.12.1.2. Utilisation](#51212-utilisation)
-      - [5.12.1.3. Désinstallation](#51213-désinstallation)
-    - [5.12.2. Azure DNS](#5122-azure-dns)
-      - [5.12.2.1. Installation de Azure CLI](#51221-installation-de-azure-cli)
-      - [5.12.2.2. Installation](#51222-installation)
-      - [5.12.2.3. Utilisation](#51223-utilisation)
-      - [5.12.2.4. Désinstallation](#51224-désinstallation)
-    - [5.12.3. Deploiement automatique de CNAME Cloudflare](#5123-deploiement-automatique-de-cname-cloudflare)
-      - [5.12.3.1. Installation](#51231-installation)
-      - [5.12.3.2. Exemple d'utilisation](#51232-exemple-dutilisation)
-      - [5.12.3.3. Désinstallation](#51233-désinstallation)
-  - [5.13. Helm-Dashboard](#513-helm-dashboard)
-  - [5.14. Wireguard](#514-wireguard)
-    - [5.14.1. Initialisation](#5141-initialisation)
-    - [5.14.2. Ajout d'un nœud](#5142-ajout-dun-nœud)
-    - [5.14.3. Voir les nœuds](#5143-voir-les-nœuds)
-    - [5.14.4. Déployer les nœuds](#5144-déployer-les-nœuds)
-  - [5.15. Fichier `README.md` multilingue](#515-fichier-readmemd-multilingue)
-  - [5.16. Bird sur le control-plane](#516-bird-sur-le-control-plane)
+- [4. HAProxy](#4-haproxy)
+- [5. oci-manage](#5-oci-manage)
+  - [5.1. déployer le fichier hosts](#51-déployer-le-fichier-hosts)
+  - [5.2. déployer le certificat racine](#52-déployer-le-certificat-racine)
+  - [5.3. déployer la configuration HAProxy (déprécié)](#53-déployer-la-configuration-haproxy-déprécié)
+  - [5.4. mise à jour des paquets:](#54-mise-à-jour-des-paquets)
+  - [5.5. redémarrer le cluster](#55-redémarrer-le-cluster)
+  - [5.6. déployer un fichier](#56-déployer-un-fichier)
+  - [5.7. déployer le firewall](#57-déployer-le-firewall)
+  - [5.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*](#58-recréer-les-fichiers-dinterface-locale-ex-en-cas-de-modification-du-routage)
+- [6. Déploiement du cluster](#6-déploiement-du-cluster)
+  - [6.1. Autorité de certification](#61-autorité-de-certification)
+    - [6.1.1. Déploiement de l'autorité de certification](#611-déploiement-de-lautorité-de-certification)
+  - [6.2. Control-Plane](#62-control-plane)
+  - [6.3. Résolution de nom](#63-résolution-de-nom)
+  - [6.4. Workers](#64-workers)
+  - [6.5. Effacement du cluster et résinstallation du cluster](#65-effacement-du-cluster-et-résinstallation-du-cluster)
+    - [6.5.1. Effacement](#651-effacement)
+    - [6.5.2. Réinstallation](#652-réinstallation)
+  - [6.6. Stockage persistant](#66-stockage-persistant)
+    - [6.6.1. Longhorn](#661-longhorn)
+    - [6.6.2. OpenEBS/jiva](#662-openebsjiva)
+  - [6.7. Gestionnaire de certificat](#67-gestionnaire-de-certificat)
+  - [6.8. Ouverture sur le monde extérieur](#68-ouverture-sur-le-monde-extérieur)
+  - [6.9. Accès aux tableaux de bord](#69-accès-aux-tableaux-de-bord)
+  - [6.10. Grafana](#610-grafana)
+  - [6.11. Registre local de container](#611-registre-local-de-container)
+    - [6.11.1. créer une résolution de nom spécifique:](#6111-créer-une-résolution-de-nom-spécifique)
+    - [6.11.2. Pour ajouter une image:](#6112-pour-ajouter-une-image)
+    - [6.11.3. Pour désinstaller le registre local:](#6113-pour-désinstaller-le-registre-local)
+    - [6.11.4. Interface utilisateur](#6114-interface-utilisateur)
+  - [6.12. Letsencrypt](#612-letsencrypt)
+    - [6.12.1. Oracle OCI DNS01](#6121-oracle-oci-dns01)
+      - [6.12.1.1. Installation](#61211-installation)
+      - [6.12.1.2. Utilisation](#61212-utilisation)
+      - [6.12.1.3. Désinstallation](#61213-désinstallation)
+    - [6.12.2. Azure DNS](#6122-azure-dns)
+      - [6.12.2.1. Installation de Azure CLI](#61221-installation-de-azure-cli)
+      - [6.12.2.2. Installation](#61222-installation)
+      - [6.12.2.3. Utilisation](#61223-utilisation)
+      - [6.12.2.4. Désinstallation](#61224-désinstallation)
+    - [6.12.3. Deploiement automatique de CNAME Cloudflare](#6123-deploiement-automatique-de-cname-cloudflare)
+      - [6.12.3.1. Installation](#61231-installation)
+      - [6.12.3.2. Exemple d'utilisation](#61232-exemple-dutilisation)
+      - [6.12.3.3. Désinstallation](#61233-désinstallation)
+  - [6.13. Helm-Dashboard](#613-helm-dashboard)
+  - [6.14. Wireguard](#614-wireguard)
+    - [6.14.1. Initialisation](#6141-initialisation)
+    - [6.14.2. Ajout d'un nœud](#6142-ajout-dun-nœud)
+    - [6.14.3. Voir les nœuds](#6143-voir-les-nœuds)
+    - [6.14.4. Déployer les nœuds](#6144-déployer-les-nœuds)
+  - [6.15. Fichier `README.md` multilingue](#615-fichier-readmemd-multilingue)
+  - [6.16. Bird sur le control-plane](#616-bird-sur-le-control-plane)
 
 ## 1.1. Objectifs
 Créer une maquette bare-metal d'un cluster Kubernetes à l'aide de machine  virtuelles "toujours gratuites" Oracle Cloud Infrastructure.     
@@ -282,7 +283,16 @@ init_install_cri_docker $NODE_PUBLIC_IP
 # après avoir noté l'adresse mac et l'adresse ip privée de l'instance
 init_create_private_interface $NODE_PUBLIC_IP $PRIVATE_MAC $PRIVATE_IP
 ```
-# 4. oci-manage
+# 4. HAProxy
+Dans la plupart des clusters Kubernetes l'équilibrage de charge et le routage vers l'intérieur du cluster est pris en charge par l'infrastructure du datacenter.  
+Dans le cas d'un cluster bare-metal il n'y a aucune solution immédiate pour accéder aux adresses IP internes du cluster depuis Internet.  
+MetalLB par exemple ne permet pas d'équilibrer l'accès entrant entre les adresses IP publiques de chacun des nœuds.  
+Une autre solution consiste à bricoler la table netfilter pour qu'elle transmette les paquets tcp vers les adresses internes. Cela reste du bricolage.  
+HAProxy propose une solution élégante.  
+En mode couche 7 HAProxy agit comme un reverse proxy mais il faut configurer toutes les Ingress manuellement.  
+On peut utiliser le mode TCP (couche 3), mais on perd les informations de l'adresse IP source (sauf à utiliser le protocol HAProxy qui doit être supporté par le client).  
+La solution que je trouve idéale est de piloter HAProxy automatiquement par HAProxy-ingress-controller qui communique avec le cluster et configure sur chaque HAProxy sur chaque nœud.  
+# 5. oci-manage
 Quand tous les nœuds sont pré-installés  
 Avec `oci-manage` on peut alors effectuer des tâches "globales"  
 Il s'agit d'un ensemble de fonctions *bash* que nous utilisons pour gérer le cluster.  
@@ -326,33 +336,29 @@ Le chemin du fichier `oci-manage-config.sh` est codé en dur à la fin des valeu
 À chaque ajout de nœud il faut mettre à jour la variable CLUSTER_MEMBERS du fichier de configuration.  
 À chaque changement de variable il faut appeler de nouveau `. ~/oci-manage`  
 
-## 4.1. déployer le fichier hosts
+## 5.1. déployer le fichier hosts
 - Créer manuellement le fichier `sudo vi /etc/hosts` du control-plane puis déployez le.  
 ```sh
 cluster_deploy_hosts
 ```
-## 4.2. déployer le certificat racine
+## 5.2. déployer le certificat racine
 celui dans la variable ROOT_CA
 ```sh
 cluster_deploy_ca_cert
 ```
-## 4.3. déployer la configuration HAProxy
+## 5.3. déployer la configuration HAProxy (déprécié)
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
-## 4.4. mise à jour des paquets:  
+## 5.4. mise à jour des paquets:  
 ```sh
 cluster_apt_dist_upgrade
 ```
-## 4.5. redémarrer le cluster
+## 5.5. redémarrer le cluster
 ```sh
 cluster_reboot
 ```
-Après le démarrage il est probablement nécessaire de relancer `haproxy` car la résolution de nom n'est pas cohérente avant l'expiration du TTL  
-```sh
-cluster_restart_haproxy
-```
-## 4.6. déployer un fichier 
+## 5.6. déployer un fichier 
 ```sh
 #en tant que root
 cluster_copy_file_as_root /etc/hosts /etc/hosts
@@ -360,23 +366,23 @@ cluster_copy_file_as_root /etc/hosts /etc/hosts
 cluster_copy_file_as_current_user ~/oci-manage ~/oci-manage
 cluster_copy_file_as_current_user ~/oci-manage-config.sh ~/oci-manage-config.sh
 ```
-## 4.7. déployer le firewall
+## 5.7. déployer le firewall
 ```sh
 cluster_copy_file_as_root /etc/iptables/rules.v4 /etc/iptables/rules.v4
 cluster_run_on_all_members_as_root "iptables-restore -t /etc/iptables/rules.v4"
 ```
-## 4.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
+## 5.8. (re)créer les fichiers d'interface locale *ex: en cas de modification du routage*
 ```sh
 cluster_recreate_private_interface
 cluster_recreate_master_private_interface
 ```
-# 5. Déploiement du cluster
+# 6. Déploiement du cluster
 Normalement toutes les machines sont prêtes, on peut vérifier qu'elles peuvent communiquer entre elles:
 ```sh
 cluster_ping_host_from_members $CONTROL_PLANE_LOCAL
 ```
 C'est tout bon ? On peut passer aux choses sérieuses.
-## 5.1. Autorité de certification
+## 6.1. Autorité de certification
 pour créer une autorité de certification racine (CA) et une autorité locale (Sub CA) il y a plein de tutos sur Internet. En gros:  
 ```sh
 mkdir ~/certs
@@ -395,22 +401,22 @@ nous avons créé 3 subca:
 - ~/pki/ca.crt et sa clef ~/pki/ca.key c'est l'autorité principale du cluster
 - ~/pki/front-proxy.crt et sa clef ~/pki/front-proxy.crt
 - ~/pki/etcd/ca.crt et sa clef ~/pki/etcd/ca.key
-### 5.1.1. Déploiement de l'autorité de certification
+### 6.1.1. Déploiement de l'autorité de certification
 Il est important que tous les nœuds approuvent la nouvelle autorité de certification.  
 Convertissez le certificat en base64 avec `cluster_convert_pem_to_base64 ~/pki/ca.crt`
 Ajoutez le certificat codé en base64 dans la variable ROOT_CA puis déployez le avec `cluster_deploy_ca_cert`  
-## 5.2. Control-Plane
+## 6.2. Control-Plane
 À l'aide de `oci-manage`  
 ```sh
 cluster_init_create_control_plane
 ```
-## 5.3. Résolution de nom
+## 6.3. Résolution de nom
 Au cours de la phase d'installation la configuration de CoreDNS est modifiée.  
 Une zone `cluster.external` est ajoutée. Elle permet de résoudre les adresses IP externes des services.  
 Sur chaque nœud le service systemd-resolved qui est en charge de la résolution de nom système est configuré pour intérroger CoreDNS ainsi les noms internes au cluster sont accessibles depuis le controle-plane ou les nœuds.  
 Exemple `dig +short traefik.kube-traefik.cluster.external` renvoie l'adresse externe du LoadBalancer de Traefik.  
 
-## 5.4. Workers
+## 6.4. Workers
 ```sh
 cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
 # petit bug avec le dashboard si il répond toujours 404 il faut le recréer…
@@ -455,9 +461,9 @@ kube-traefik           traefik-d65c6d5cd-d8w4j                                  
 kubernetes-dashboard   dashboard-metrics-scraper-7bc864c59-d9dqf                            1/1     Running   1 (28m ago)    3h
 kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                                1/1     Running   1 (29m ago)    3h
 ```
-## 5.5. Effacement du cluster et résinstallation du cluster  
+## 6.5. Effacement du cluster et résinstallation du cluster  
 On est dans un labo alors on doit faire des essais il est très simple d'effacer intégralement le cluster et de le remettre dans la configuration initiale. Deux étapes sont nécessaires:  
-### 5.5.1. Effacement 
+### 6.5.1. Effacement 
 ```sh
 cluster_reset_members
 # eventuellement une fois les membres disponibles
@@ -465,7 +471,7 @@ cluster_reset_storage
 # control_plane
 cluster_reset_control_plane
 ```
-### 5.5.2. Réinstallation
+### 6.5.2. Réinstallation
 Pensez à choisir le backend de persistence qui est openEbs par défaut.  
 pour utiliser Longhorn il faut changer la variable: `STORAGE_BACKEND="longhorn"`
 ```sh
@@ -477,9 +483,9 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 cluster_init_create_post_install_grafana
 ```
 
-## 5.6. Stockage persistant 
+## 6.6. Stockage persistant 
 Plusieurs solutions existent.  
-### 5.6.1. Longhorn
+### 6.6.1. Longhorn
 Si vos nœuds sont suffisament puissants [Longhorn](https://longhorn.io/) fonctionne à merveille. Il ne fonctionne réellement correctement que si tous les nœuds ont au moins 4Go de RAM.  
 Sinon les nœuds avec peu de mémoire s'effondrent et le cluster souffre.  
 Pour activer Longhorn:  
@@ -487,14 +493,14 @@ Pour activer Longhorn:
 cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
 ```
-### 5.6.2. OpenEBS/jiva
+### 6.6.2. OpenEBS/jiva
 C'est une solution plus légère mais sans la belle UI de Longhorn.  
 Il est nécessaire de monter les stockages dans /storage sur les membres disposants de stockage de blocs.  
 ```sh
 cluster_init_install_openebs
 ```
 
-## 5.7. Gestionnaire de certificat
+## 6.7. Gestionnaire de certificat
 Vu que nous avons notre propre autorité de certification, cert-manager est automatiquement déployé pendant la phase de post-installation.  
 Cela permet de créer automatiquement des certificats.  
 Cela est très utile pour générer les certificats des Ingress -les routes https entrantes dans le cluster-  
@@ -546,7 +552,7 @@ spec:
   - hosts: [monhote.example.org]
     secretName: monhote-cert
 ```
-## 5.8. Ouverture sur le monde extérieur
+## 6.8. Ouverture sur le monde extérieur
 Par défaut tous les nœuds hébergent un proxy [haproxy](https://www.haproxy.org/). Celui-ci relaie le port 443 du service Traefik sur les interfaces locales. Cela permet d'avoir un load balancer basique ouvert sur l'extérieur.  
 Pour modifier la configuration il faut éditer le fichier `/etc/haproxy/haproxy.cfg` du control-plane puis de le déployer sur l'ensemble du cluster:  
 ```sh
@@ -567,7 +573,7 @@ backend k8s-traefik
   - `kube-traefik` son espace de nom
   - `443` est le port tcp.
 
-## 5.9. Accès aux tableaux de bord
+## 6.9. Accès aux tableaux de bord
 Sur votre DNS faites pointer `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` vers les adresses IP des nœuds que vous ouvrez sur l'extérieur (un seul est suffisant).
 Notez que `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` et `DASHBOARD_DNS_NAMES` du fichier `oci-manage-config.sh` sont au pluriel. En effet il s'agit de tableaux bash qui permettent de définir plusieurs nom DNS ainsi par exemple on peut faire pointer `dashboard.domaine.prive` vers l'adresse IP visible depuis l'intérieur du labo et `dashboard.domaine.com` vers l'adresse IP visible depuis Internet. Traefik acceptera les deux noms. Le certificat SSL sera valide pour les deux noms.  
 Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
@@ -575,7 +581,7 @@ Les tableaux de bord de votre cluster sont accessibles à l'aide de ces noms:
 - `https://HUBBLE_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
 - `https://DASHBOARD_DNS_NAMES` (login à l'aide du jeton obtenu avec dashboard_get_token)
 - `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
-## 5.10. Grafana
+## 6.10. Grafana
 Si vous besoin vous pouvez automatiquement relier votre cluster laboratoire à une instance gratuite [Grafanan](https://grafana.com/)  
 Ajustez les valeurs  
 ```sh
@@ -594,11 +600,11 @@ Pour l'effacer
 ```sh
 kubectl 
 ```
-## 5.11. Registre local de container
+## 6.11. Registre local de container
 Le CI/CD c'est bien, mais en développement ça peut être long.  
 Un registre local peut-être pratique !  
 Pour installer le registre:
-### 5.11.1. créer une résolution de nom spécifique:
+### 6.11.1. créer une résolution de nom spécifique:
 Repérer l'adresse ip du load balancer de traefik avec `cluster_get_traefik_lb_ip`  ici 172.31.255.49 et ajouter la section hosts dans la configuration de coredns:
 ```sh
 kubectl edit configmap coredns -n kube-system
@@ -641,25 +647,25 @@ metadata:
 ```
 dev_install_local_registry
 ```
-### 5.11.2. Pour ajouter une image:  
+### 6.11.2. Pour ajouter une image:  
 ```sh
 docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
 #et l'utiliser
 helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
 ```
-### 5.11.3. Pour désinstaller le registre local:
+### 6.11.3. Pour désinstaller le registre local:
 ```
 dev_uninstall_local_registry
 ```
-### 5.11.4. Interface utilisateur
+### 6.11.4. Interface utilisateur
 Les Ingress sont définis par la variable DOCKER_REGISTRY_UI_DNS_NAMES
 
-## 5.12. Letsencrypt
-### 5.12.1. Oracle OCI DNS01
-#### 5.12.1.1. Installation
+## 6.12. Letsencrypt
+### 6.12.1. Oracle OCI DNS01
+#### 6.12.1.1. Installation
 Pour créer deux ClusterIssuer appelés letstencrypt-oci et letsentrypt-staging-oci (à des fins de test) il faut compléter les variables OCI_*.  
 Ensuite installer le webhook `cluster_init_install_oci_dns_issuer`.  
-#### 5.12.1.2. Utilisation
+#### 6.12.1.2. Utilisation
 pour créer un certificat *staging*
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -676,17 +682,17 @@ spec:
     kind: ClusterIssuer
   secretName: test.myocihostedzone.org
 ```
-#### 5.12.1.3. Désinstallation
+#### 6.12.1.3. Désinstallation
 ```sh
 cluster_init_remove_oci_dns_issuer
 ```
-### 5.12.2. Azure DNS
+### 6.12.2. Azure DNS
 Tout d'abord la cli doit être installée
-#### 5.12.2.1. Installation de Azure CLI
+#### 6.12.2.1. Installation de Azure CLI
 ```sh 
 azure_install_cli
 ```
-#### 5.12.2.2. Installation
+#### 6.12.2.2. Installation
 ```sh
 az login --use-device-code
 AZURE_CERT_MANAGER_NEW_SP_NAME=kube-cluster-azure-sp
@@ -707,7 +713,7 @@ Mettez les variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MA
 ```sh
 cluster_init_azure_dns_issuer
 ```
-#### 5.12.2.3. Utilisation
+#### 6.12.2.3. Utilisation
 pour créer un certificat *staging*
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -724,17 +730,17 @@ spec:
     kind: ClusterIssuer
   secretName: test.example.org
 ```
-#### 5.12.2.4. Désinstallation
+#### 6.12.2.4. Désinstallation
 ```sh
 cluster_reset_remove_azure_dns_issuer
 ```
-### 5.12.3. Deploiement automatique de CNAME Cloudflare
-#### 5.12.3.1. Installation
+### 6.12.3. Deploiement automatique de CNAME Cloudflare
+#### 6.12.3.1. Installation
 Régler les variables `CF_API_KEY` `CF_API_EMAIL` et `CF_DOMAINS`
 ```sh
 cluster_cloudflare_external_dns
 ```
-#### 5.12.3.2. Exemple d'utilisation
+#### 6.12.3.2. Exemple d'utilisation
 ```sh
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
@@ -769,11 +775,11 @@ spec:
   - hosts: [monsite.example.org]
     secretName: monsite-tls-cert
 ```
-#### 5.12.3.3. Désinstallation
+#### 6.12.3.3. Désinstallation
 ```sh
 cluster_cloudflare_external_dns delete
 ```
-## 5.13. Helm-Dashboard
+## 6.13. Helm-Dashboard
 [Komodor](https://komodor.io) fournit un excellent outil pour gérer les charts Helm dans son cluster. Malheureusment ils ne diffusent pas d'image Docker compatibles ARM64.  
 Nous avons donc adapté une [version](https://github.com/highcanfly-club/helm-dashboard.git).  
 ```sh
@@ -789,28 +795,28 @@ cluster_install_helm_dashboard
 cluster_install_helm_dashboard_ingress
 ```
 Le dashboard est alors utilisable sur les noms DNS configurés dans `HELM_DASHBOARD_DNS_NAMES` 
-## 5.14. Wireguard
+## 6.14. Wireguard
 Un réseau maillé avec Wireguard permet de s'affranchir de lien Oracle LPG et éventuellement d'ouvrir le cluster à l'extérieur de l'infrastructure Oracle, le metric de chaque route est fixé à 100 pour privilegier les routes via des passerelles d'appairage local
 
-### 5.14.1. Initialisation
+### 6.14.1. Initialisation
 ```sh
 wg_meshconf_init
 ```
-### 5.14.2. Ajout d'un nœud
+### 6.14.2. Ajout d'un nœud
 ```sh
 wg_meshconf_addpeer oci-nodeN oci-nodeN.example.com 51820
 ```
-### 5.14.3. Voir les nœuds
+### 6.14.3. Voir les nœuds
 ```sh
 wg_meshconf_showpeers
 ```
 <img width="874" alt="wg_meshconf" src="https://user-images.githubusercontent.com/6966689/233775674-08ad11b9-66fb-4f08-a6d7-1fd55549803f.png">
 
-### 5.14.4. Déployer les nœuds
+### 6.14.4. Déployer les nœuds
 ```sh
 wg_meshconf_deploy_config
 ```
-## 5.15. Fichier `README.md` multilingue
+## 6.15. Fichier `README.md` multilingue
 La traduction automatique est réalisée par Azure avec `markdown-translator`  
 ```sh
 npm install markdown-translator -g
@@ -819,7 +825,7 @@ md-translator set --region westeurope
 md-translator translate --src README.fr-FR.md --dest README.md --from fr-FR --to en-US
 #update manually the toc
 ```
-## 5.16. Bird sur le control-plane
+## 6.16. Bird sur le control-plane
 TODO
 ```sh
 sudo apt install bird

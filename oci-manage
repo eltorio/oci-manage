@@ -613,6 +613,7 @@ function cluster_init_create_control_plane() {
   cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true,egressGateway.enabled=true,gatewayAPI.enabled=true
   sleep 5
   cluster_init_create_ip_pool
+  cluster_create_haproxy_ingress_class
 }
 
 function cluster_init_create_control_plane_pool_kubernetes() {
@@ -637,16 +638,14 @@ function cluster_init_create_post_install() {
     cluster_init_install_dashboard
     #cluster_init_install_traefik_ingressroute
     sleep 30
-    kubectl delete -n kube-traefik ingressroute.traefik.containo.us/traefik-dashboard
+    #kubectl delete -n kube-traefik ingressroute.traefik.containo.us/traefik-dashboard
     #cluster_init_install_traefik_ingressroute
     cilium hubble enable --ui
     cluster_init_cilium_hubble_ui_ingress
-    cluster_run_on_all_members_as_root "systemctl restart systemd-resolved; systemctl restart haproxy"
+    cluster_run_on_all_members_as_root "systemctl restart systemd-resolved; systemctl stop haproxy && systemctl restart haproxy-ingress"
     if [[ $(type -t private_post_install) == function ]]; then
       private_post_install
     fi
-    # sudo systemctl restart systemd-resolved
-    # sudo systemctl restart haproxy
     dev_install_local_registry
   fi
 }
@@ -816,61 +815,47 @@ kind: Namespace
 metadata:
   name: kubernetes-dashboard
 EOF
-    #     # create Traefik transport
-    #     cat <<EOF | kubectl apply -f -
-    # apiVersion: v1
-    # kind: Secret
-    # metadata:
-    #   name: $CA_COMPANY-ca
-    #   namespace: kubernetes-dashboard
-    # data:
-    #   ca.crt: $ROOT_CA
-    # ---
-    # apiVersion: traefik.containo.us/v1alpha1
-    # kind: ServersTransport
-    # metadata:
-    #   name: https-ca-transport
-    #   namespace: kubernetes-dashboard
-    # spec:
-    #     rootCAsSecrets:
-    #     - $CA_COMPANY-ca
-    #     serverName: kubernetes-dashboard.kubernetes-dashboard.svc.cluster.local
-    # EOF
-    #     # create certificate
-    #     cat <<EOF | kubectl apply -f -
-    # apiVersion: cert-manager.io/v1
-    # kind: Certificate
-    # metadata:
-    #   name: kubernetes-dashboard-certs
-    #   namespace: kubernetes-dashboard
-    #   labels:
-    #      k8s-app: kubernetes-dashboard
-    # spec:
-    #   subject:
-    #       organizations:
-    #         - $CA_COMPANY
-    #   commonName: $CN
-    #   dnsNames: $DASHBOARD_DNS_NAMES_JS
-    #   secretName: kubernetes-dashboard-certs
-    #   issuerRef:
-    #     name: $CA_COMPANY-ca-issuer
-    #     kind: ClusterIssuer
-    # EOF
+    cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kubernetes-dashboard-certs
+  namespace: kubernetes-dashboard
+  labels:
+      k8s-app: kubernetes-dashboard
+spec:
+  subject:
+      organizations:
+        - $CA_COMPANY
+  commonName: $CN
+  dnsNames: $DASHBOARD_DNS_NAMES_JS
+  secretName: kubernetes-dashboard-certs
+  issuerRef:
+    name: $CA_COMPANY-ca-issuer
+    kind: ClusterIssuer
+EOF
+    kubectl apply -f ./dashboard/00-dashboard.yaml -f ./dashboard/01-admin-user.yaml #-f ./dashboard/02-ingress.yaml
+    cluster_init_install_dashboard_ingressroute
   fi
-  kubectl apply -f ./dashboard/00-dashboard.yaml -f ./dashboard/01-admin-user.yaml #-f ./dashboard/02-ingress.yaml
-  cluster_init_install_dashboard_ingressroute
+
 }
 
 function cluster_init_install_dashboard_ingressroute() {
+  if [ "$#" -ne 1 ]; then
+    ACTION=apply
+  else
+    ACTION=$1
+  fi
   cat <<EOF >/tmp/cluster_init_install_dashboard_ingressroute.yaml
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: dashboard-k8s
-  namespace: dev-container-registry
+  namespace: kubernetes-dashboard
   annotations:
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
+    haproxy.org/server-ssl: "true"
 spec:
   ingressClassName: haproxy
   rules:
@@ -892,10 +877,10 @@ EOF
   cat <<EOF >>/tmp/cluster_init_install_dashboard_ingressroute.yaml
   tls:
   - hosts: $DASHBOARD_DNS_NAMES_JS
-    secretName: hubble-cert
+    secretName: dashboard-cert
 ---
 EOF
-  kubectl apply -f /tmp/cluster_init_install_dashboard_ingressroute.yaml
+  kubectl $ACTION -f /tmp/cluster_init_install_dashboard_ingressroute.yaml
   rm /tmp/cluster_init_install_dashboard_ingressroute.yaml
 }
 
@@ -3255,6 +3240,9 @@ function get_install_haproxy_ingress_controller() {
   sudo systemctl stop haproxy-ingress
   curl -fsSL $URL | sudo tar -C /usr/local/bin/ --overwrite -xvz haproxy-ingress-controller
   kubectl create -n kube-system configmap haproxy-kubernetes-ingress
+}
+
+function cluster_create_haproxy_ingress_class() {
   cat <<EOF | kubectl apply -n kube-system -f -
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
@@ -3264,7 +3252,6 @@ spec:
   controller: haproxy.org/ingress-controller
 EOF
 }
-
 function cluster_install_haproxy_ingress_controller() {
   get_install_haproxy_ingress_controller
   cat <<EOF >/tmp/haproxy-ingress.service

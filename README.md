@@ -29,58 +29,59 @@
   - [2.6. Manual file creation `/etc/hosts` of the control plane](#26-manual-file-creation-etchosts-of-the-control-plane)
   - [2.7. Firewall definitions](#27-firewall-definitions)
 - [3. Installation of active nodes (workers) from the control-plane](#3-installation-of-active-nodes-workers-from-the-control-plane)
-- [4. oci-manage](#4-oci-manage)
-  - [4.1. Deploy the hosts file](#41-deploy-the-hosts-file)
-  - [4.2. Deploy the root certificate](#42-deploy-the-root-certificate)
-  - [4.3. Deploy the HAProxy configuration](#43-deploy-the-haproxy-configuration)
-  - [4.4. Package Update:](#44-package-update)
-  - [4.5. Restart the cluster](#45-restart-the-cluster)
-  - [4.6. Deploy a file](#46-deploy-a-file)
-  - [4.7. Deploy the firewall](#47-deploy-the-firewall)
-  - [4.8. (Re)create the local interface files *e.g. in case of routing change*](#48-recreate-the-local-interface-files-eg-in-case-of-routing-change)
-- [5. Cluster deployment](#5-cluster-deployment)
-  - [5.1. Certification Authority](#51-certification-authority)
-    - [5.1.1. Deploying the CA](#511-deploying-the-ca)
-  - [5.2. Control-Plane](#52-control-plane)
-  - [5.3. Name resolution](#53-name-resolution)
-  - [5.4. Workers](#54-workers)
-  - [5.5. Clearing the cluster and reinstalling the cluster](#55-clearing-the-cluster-and-reinstalling-the-cluster)
-    - [5.5.1. Erasure](#551-erasure)
-    - [5.5.2. Resettlement](#552-resettlement)
-  - [5.6. Persistent storage](#56-persistent-storage)
-    - [5.6.1. Longhorn](#561-longhorn)
-    - [5.6.2. OpenEBS/jiva](#562-openebsjiva)
-  - [5.7. Certificate Manager](#57-certificate-manager)
-  - [5.8. Openness to the outside world](#58-openness-to-the-outside-world)
-  - [5.9. Access to dashboards](#59-access-to-dashboards)
-  - [5.10. Grafana](#510-grafana)
-  - [5.11. Local container registry](#511-local-container-registry)
-    - [5.11.1. Create a specific name resolution:](#5111-create-a-specific-name-resolution)
-    - [5.11.2. To add an image:](#5112-to-add-an-image)
-    - [5.11.3. To uninstall the local registry:](#5113-to-uninstall-the-local-registry)
-    - [5.11.4. User Interface](#5114-user-interface)
-  - [5.12. Letsencrypt](#512-letsencrypt)
-    - [5.12.1. Oracle OCI DNS01](#5121-oracle-oci-dns01)
-      - [5.12.1.1. Installation](#51211-installation)
-      - [5.12.1.2. Use](#51212-use)
-      - [5.12.1.3. Uninstallation](#51213-uninstallation)
-    - [5.12.2. Azure DNS](#5122-azure-dns)
-      - [5.12.2.1. Install the Azure CLI](#51221-install-the-azure-cli)
-      - [5.12.2.2. Installation](#51222-installation)
-      - [5.12.2.3. Use](#51223-use)
-      - [5.12.2.4. Uninstalling](#51224-uninstalling)
-    - [5.12.3. Automatic deployment of CNAME Cloudflare](#5123-automatic-deployment-of-cname-cloudflare)
-      - [5.12.3.1. Installation](#51231-installation)
-      - [5.12.3.2. Example of use](#51232-example-of-use)
-      - [5.12.3.3. Uninstallation](#51233-uninstallation)
-  - [5.13. Helm-Dashboard](#513-helm-dashboard)
-  - [5.14. Wireguard](#514-wireguard)
-    - [5.14.1. Initialization](#5141-initialization)
-    - [5.14.2. Adding a node](#5142-adding-a-node)
-    - [5.14.3. View Nodes](#5143-view-nodes)
-    - [5.14.4. Deploy Nodes](#5144-deploy-nodes)
-  - [5.15. File `README.md` multilingual](#515-file-readmemd-multilingual)
-  - [5.16. Bird on the control-plane](#516-bird-on-the-control-plane)
+- [4. HAProxy](#4-haproxy)
+- [5. OIC-MANAGE](#5-oic-manage)
+  - [5.1. Deploy the hosts file](#51-deploy-the-hosts-file)
+  - [5.2. Deploy the root certificate](#52-deploy-the-root-certificate)
+  - [5.3. Deploy the HAProxy configuration (deprecated)](#53-deploy-the-haproxy-configuration-deprecated)
+  - [5.4. Package Update:](#54-package-update)
+  - [5.5. Restart the cluster](#55-restart-the-cluster)
+  - [5.6. Deploy a file](#56-deploy-a-file)
+  - [5.7. Deploy the firewall](#57-deploy-the-firewall)
+  - [5.8. (re)create the local interface files *e.g. in case of routing change*](#58-recreate-the-local-interface-files-eg-in-case-of-routing-change)
+- [6. Cluster deployment](#6-cluster-deployment)
+  - [6.1. Certification Authority](#61-certification-authority)
+    - [6.1.1. Deploying the CA](#611-deploying-the-ca)
+  - [6.2. Control-Plane](#62-control-plane)
+  - [6.3. Name resolution](#63-name-resolution)
+  - [6.4. Workers](#64-workers)
+  - [6.5. Clearing the cluster and reinstalling the cluster](#65-clearing-the-cluster-and-reinstalling-the-cluster)
+    - [6.5.1. Erasure](#651-erasure)
+    - [6.5.2. Resettlement](#652-resettlement)
+  - [6.6. Persistent storage](#66-persistent-storage)
+    - [6.6.1. Longhorn](#661-longhorn)
+    - [6.6.2. OpenEBS/jiva](#662-openebsjiva)
+  - [6.7. Certificate Manager](#67-certificate-manager)
+  - [6.8. Openness to the outside world](#68-openness-to-the-outside-world)
+  - [6.9. Access to dashboards](#69-access-to-dashboards)
+  - [6.10. Grafana](#610-grafana)
+  - [6.11. Local container registry](#611-local-container-registry)
+    - [6.11.1. Create a specific name resolution:](#6111-create-a-specific-name-resolution)
+    - [6.11.2. To add an image:](#6112-to-add-an-image)
+    - [6.11.3. To uninstall the local registry:](#6113-to-uninstall-the-local-registry)
+    - [6.11.4. User Interface](#6114-user-interface)
+  - [6.12. Letsencrypt](#612-letsencrypt)
+    - [6.12.1. Oracle OCI DNS01](#6121-oracle-oci-dns01)
+      - [6.12.1.1. Installation](#61211-installation)
+      - [6.12.1.2. Use](#61212-use)
+      - [6.12.1.3. Uninstalling](#61213-uninstalling)
+    - [6.12.2. Azure DNS](#6122-azure-dns)
+      - [6.12.2.1. Install the Azure CLI](#61221-install-the-azure-cli)
+      - [6.12.2.2. Installation](#61222-installation)
+      - [6.12.2.3. Use](#61223-use)
+      - [6.12.2.4. Uninstalling](#61224-uninstalling)
+    - [6.12.3. Automatic deployment of CNAME Cloudflare](#6123-automatic-deployment-of-cname-cloudflare)
+      - [6.12.3.1. Installation](#61231-installation)
+      - [6.12.3.2. Example of use](#61232-example-of-use)
+      - [6.12.3.3. Uninstallation](#61233-uninstallation)
+  - [6.13. Helm-Dashboard](#613-helm-dashboard)
+  - [6.14. Wireguard](#614-wireguard)
+    - [6.14.1. Initialization](#6141-initialization)
+    - [6.14.2. Adding a Node](#6142-adding-a-node)
+    - [6.14.3. View nodes](#6143-view-nodes)
+    - [6.14.4. Deploy Nodes](#6144-deploy-nodes)
+  - [6.15. File `README.md` multilingual](#615-file-readmemd-multilingual)
+  - [6.16. Bird on the control-plane](#616-bird-on-the-control-plane)
 
 ## 1.1. Objectives
 
@@ -325,7 +326,18 @@ init_install_cri_docker $NODE_PUBLIC_IP
 init_create_private_interface $NODE_PUBLIC_IP $PRIVATE_MAC $PRIVATE_IP
 ```
 
-# 4. oci-manage
+# 4. HAProxy
+
+In most Kubernetes clusters, load balancing and routing to the inside of the cluster is supported by the data center infrastructure.\
+In the case of a bare-metal cluster there is no immediate solution to access the internal IP addresses of the cluster from the Internet.\
+MetalLB, for example, does not allow inbound access to be balanced between the public IP addresses of each node.\
+Another solution is to tinker with the netfilter table so that it forwards tcp packets to internal addresses. It's still DIY.\
+HAProxy offers an elegant solution.\
+In layer 7 mode HAProxy acts as a reverse proxy but you have to configure all Ingress manually.\
+You can use TCP mode (layer 3), but you lose the source IP address information (except to use the HAProxy protocol which must be supported by the client).\
+The solution I find ideal is to drive HAProxy automatically by HAProxy-ingress-controller which communicates with the cluster and configures on each HAProxy on each node.
+
+# 5. OIC-MANAGE
 
 When all nodes are pre-installed\
 With `oci-manage` We can then perform "global" tasks\
@@ -374,7 +386,7 @@ The file path `oci-manage-config.sh` is hard-coded at the end of the default val
 Each time a node is added, the CLUSTER_MEMBERS variable of the configuration file must be updated.\
 At each change of variable you must call again `. ~/oci-manage`
 
-## 4.1. Deploy the hosts file
+## 5.1. Deploy the hosts file
 
 *   Manually create the file `sudo vi /etc/hosts` of the control-plane and then deploy it.
 
@@ -382,7 +394,7 @@ At each change of variable you must call again `. ~/oci-manage`
 cluster_deploy_hosts
 ```
 
-## 4.2. Deploy the root certificate
+## 5.2. Deploy the root certificate
 
 the one in the variable ROOT_CA
 
@@ -390,31 +402,25 @@ the one in the variable ROOT_CA
 cluster_deploy_ca_cert
 ```
 
-## 4.3. Deploy the HAProxy configuration
+## 5.3. Deploy the HAProxy configuration (deprecated)
 
 ```sh
 cluster_deploy_haproxy_config_on_members
 ```
 
-## 4.4. Package Update:
+## 5.4. Package Update:
 
 ```sh
 cluster_apt_dist_upgrade
 ```
 
-## 4.5. Restart the cluster
+## 5.5. Restart the cluster
 
 ```sh
 cluster_reboot
 ```
 
-After booting it is probably necessary to restart `haproxy` because name resolution is not consistent before the TTL expires
-
-```sh
-cluster_restart_haproxy
-```
-
-## 4.6. Deploy a file
+## 5.6. Deploy a file
 
 ```sh
 #en tant que root
@@ -424,21 +430,21 @@ cluster_copy_file_as_current_user ~/oci-manage ~/oci-manage
 cluster_copy_file_as_current_user ~/oci-manage-config.sh ~/oci-manage-config.sh
 ```
 
-## 4.7. Deploy the firewall
+## 5.7. Deploy the firewall
 
 ```sh
 cluster_copy_file_as_root /etc/iptables/rules.v4 /etc/iptables/rules.v4
 cluster_run_on_all_members_as_root "iptables-restore -t /etc/iptables/rules.v4"
 ```
 
-## 4.8. (Re)create the local interface files *e.g. in case of routing change*
+## 5.8. (re)create the local interface files *e.g. in case of routing change*
 
 ```sh
 cluster_recreate_private_interface
 cluster_recreate_master_private_interface
 ```
 
-# 5. Cluster deployment
+# 6. Cluster deployment
 
 Normally all machines are ready, we can check that they can communicate with each other:
 
@@ -448,7 +454,7 @@ cluster_ping_host_from_members $CONTROL_PLANE_LOCAL
 
 Is it all good? We can get down to business.
 
-## 5.1. Certification Authority
+## 6.1. Certification Authority
 
 to create a root certification authority (CA) and a local authority (Sub CA) there are plenty of tutorials on the Internet. Wholesale:
 
@@ -472,13 +478,13 @@ We have created 3 subca:
 *   \~/pki/front-proxy.crt and its key ~/pki/front-proxy.crt
 *   \~/pki/etcd/ca.crt and its key ~/pki/etcd/ca.key
 
-### 5.1.1. Deploying the CA
+### 6.1.1. Deploying the CA
 
 It is important that all nodes trust the new CA.\
 Convert the certificate to base64 with `cluster_convert_pem_to_base64 ~/pki/ca.crt`
 Add the base64-encoded certificate to the ROOT_CA variable and then deploy it with `cluster_deploy_ca_cert`
 
-## 5.2. Control-Plane
+## 6.2. Control-Plane
 
 Using `oci-manage`
 
@@ -486,14 +492,14 @@ Using `oci-manage`
 cluster_init_create_control_plane
 ```
 
-## 5.3. Name resolution
+## 6.3. Name resolution
 
 During the installation phase the CoreDNS configuration is changed.\
 One area `cluster.external` is added. It is used to resolve the external IP addresses of the services.\
 On each node the systemd-resolved service that is in charge of system name resolution is configured to interrogate CoreDNS so the names internal to the cluster are accessible from the plane control or nodes.\
 Example `dig +short traefik.kube-traefik.cluster.external` returns the external address of the Traefik LoadBalancer.
 
-## 5.4. Workers
+## 6.4. Workers
 
 ```sh
 cluster_init_create_members ; sleep 30 ; cluster_init_create_post_install
@@ -544,11 +550,11 @@ kubernetes-dashboard   dashboard-metrics-scraper-7bc864c59-d9dqf                
 kubernetes-dashboard   kubernetes-dashboard-7bff9cc896-l8pkd                                1/1     Running   1 (29m ago)    3h
 ```
 
-## 5.5. Clearing the cluster and reinstalling the cluster
+## 6.5. Clearing the cluster and reinstalling the cluster
 
 We are in a lab so we have to do tests it is very simple to completely erase the cluster and put it back in the initial configuration. Two steps are required:
 
-### 5.5.1. Erasure
+### 6.5.1. Erasure
 
 ```sh
 cluster_reset_members
@@ -558,7 +564,7 @@ cluster_reset_storage
 cluster_reset_control_plane
 ```
 
-### 5.5.2. Resettlement
+### 6.5.2. Resettlement
 
 Remember to choose the persistence backend which is openEbs by default.\
 to use Longhorn you have to change the variable: `STORAGE_BACKEND="longhorn"`
@@ -572,11 +578,11 @@ cluster_init_create_control_plane; sleep 30; cluster_init_create_members ; sleep
 cluster_init_create_post_install_grafana
 ```
 
-## 5.6. Persistent storage
+## 6.6. Persistent storage
 
 Several solutions exist.
 
-### 5.6.1. Longhorn
+### 6.6.1. Longhorn
 
 If your nodes are powerful enough [Longhorn](https://longhorn.io/) works wonderfully. It only actually works properly if all nodes have at least 4GB of RAM.\
 Otherwise nodes with little memory collapse and the cluster suffers.\
@@ -587,7 +593,7 @@ cluster_init_install_longhorn
 cluster_init_install_longhorn_ingress
 ```
 
-### 5.6.2. OpenEBS/jiva
+### 6.6.2. OpenEBS/jiva
 
 It's a lighter solution but without Longhorn's beautiful UI.\
 It is necessary to mount the storages in /storage on the members with block storage.
@@ -596,7 +602,7 @@ It is necessary to mount the storages in /storage on the members with block stor
 cluster_init_install_openebs
 ```
 
-## 5.7. Certificate Manager
+## 6.7. Certificate Manager
 
 Since we have our own certificate authority, cert-manager is automatically deployed during the post-installation phase.\
 This allows certificates to be created automatically.\
@@ -653,7 +659,7 @@ spec:
     secretName: monhote-cert
 ```
 
-## 5.8. Openness to the outside world
+## 6.8. Openness to the outside world
 
 By default all nodes host a proxy [Haproxy](https://www.haproxy.org/). It relays port 443 of the Traefik service on local interfaces. This makes it possible to have a basic load balancer open to the outside.\
 To modify the configuration you must edit the file `/etc/haproxy/haproxy.cfg` control-plane and then deploy it to the entire cluster:
@@ -677,7 +683,7 @@ Configuring a port is simple:
     *   `kube-traefik` its namespace
     *   `443` is the TCP port.
 
-## 5.9. Access to dashboards
+## 6.9. Access to dashboards
 
 On your DNS point `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` and `DASHBOARD_DNS_NAMES` to the IP addresses of the nodes you open on the outside (only one is sufficient).
 Note that `TRAEFIK_DASHBOARD_DNS_NAMES`, `HUBBLE_DASHBOARD_DNS_NAMES` and `DASHBOARD_DNS_NAMES` of the file `oci-manage-config.sh` are plural. Indeed these are bash arrays that allow to define several DNS name so for example we can point `dashboard.domaine.prive` to the IP address visible from inside the lab and `dashboard.domaine.com` to the IP address visible from the Internet. Traefik will accept both names. The SSL certificate will be valid for both names.\
@@ -688,7 +694,7 @@ Your cluster's dashboards can be accessed using these names:
 *   `https://DASHBOARD_DNS_NAMES` (login using the token obtained with dashboard_get_token)
 *   `https://LONGHORN_DASHBOARD_DNS_NAMES` (login TRAEFIK_ADMIN/TRAEFIK_ADMIN_PASSWORD)
 
-## 5.10. Grafana
+## 6.10. Grafana
 
 If you need you can automatically link your lab cluster to a free instance [Grafanan](https://grafana.com/)\
 Adjust values
@@ -714,13 +720,13 @@ To clear it
 kubectl 
 ```
 
-## 5.11. Local container registry
+## 6.11. Local container registry
 
 The CI/CD is good, but in development it can be long.\
 A local registry can be handy!\
 To install the registry:
 
-### 5.11.1. Create a specific name resolution:
+### 6.11.1. Create a specific name resolution:
 
 Find the IP address of the traefik load balancer with `cluster_get_traefik_lb_ip`  Here 172.31.255.49 and add the hosts section in the coredns configuration:
 
@@ -766,7 +772,7 @@ metadata:
 
     dev_install_local_registry
 
-### 5.11.2. To add an image:
+### 6.11.2. To add an image:
 
 ```sh
 docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
@@ -774,24 +780,24 @@ docker push docker-registry.local/cert-manage-webhook-oci:1.3.0.2
 helm install --namespace kube-certmanager cert-manager-webhook-oci deploy/cert-manager-webhook-oci --set image.repository=docker-registry.local/cert-manage-webhook-oci --set image.tag=1.3.0.2
 ```
 
-### 5.11.3. To uninstall the local registry:
+### 6.11.3. To uninstall the local registry:
 
     dev_uninstall_local_registry
 
-### 5.11.4. User Interface
+### 6.11.4. User Interface
 
 Ingress are defined by the variable DOCKER_REGISTRY_UI_DNS_NAMES
 
-## 5.12. Letsencrypt
+## 6.12. Letsencrypt
 
-### 5.12.1. Oracle OCI DNS01
+### 6.12.1. Oracle OCI DNS01
 
-#### 5.12.1.1. Installation
+#### 6.12.1.1. Installation
 
 To create two ClusterIssuers called letstencrypt-oci and letsentrypt-staging-oci (for testing purposes) you must complete the OCI_\* variables.\
 Then install the webhook `cluster_init_install_oci_dns_issuer`.
 
-#### 5.12.1.2. Use
+#### 6.12.1.2. Use
 
 To create a certificate *Staging*
 
@@ -811,23 +817,23 @@ spec:
   secretName: test.myocihostedzone.org
 ```
 
-#### 5.12.1.3. Uninstallation
+#### 6.12.1.3. Uninstalling
 
 ```sh
 cluster_init_remove_oci_dns_issuer
 ```
 
-### 5.12.2. Azure DNS
+### 6.12.2. Azure DNS
 
 First of all the cli must be installed
 
-#### 5.12.2.1. Install the Azure CLI
+#### 6.12.2.1. Install the Azure CLI
 
 ```sh
 azure_install_cli
 ```
 
-#### 5.12.2.2. Installation
+#### 6.12.2.2. Installation
 
 ```sh
 az login --use-device-code
@@ -852,7 +858,7 @@ Update the variables AZURE_DNS_ZONE, AZURE_CERT_MANAGER_SP_APP_ID, AZURE_CERT_MA
 cluster_init_azure_dns_issuer
 ```
 
-#### 5.12.2.3. Use
+#### 6.12.2.3. Use
 
 To create a certificate *Staging*
 
@@ -872,15 +878,15 @@ spec:
   secretName: test.example.org
 ```
 
-#### 5.12.2.4. Uninstalling
+#### 6.12.2.4. Uninstalling
 
 ```sh
 cluster_reset_remove_azure_dns_issuer
 ```
 
-### 5.12.3. Automatic deployment of CNAME Cloudflare
+### 6.12.3. Automatic deployment of CNAME Cloudflare
 
-#### 5.12.3.1. Installation
+#### 6.12.3.1. Installation
 
 Adjust variables `CF_API_KEY` `CF_API_EMAIL` and `CF_DOMAINS`
 
@@ -888,7 +894,7 @@ Adjust variables `CF_API_KEY` `CF_API_EMAIL` and `CF_DOMAINS`
 cluster_cloudflare_external_dns
 ```
 
-#### 5.12.3.2. Example of use
+#### 6.12.3.2. Example of use
 
 ```sh
 helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -926,13 +932,13 @@ spec:
     secretName: monsite-tls-cert
 ```
 
-#### 5.12.3.3. Uninstallation
+#### 6.12.3.3. Uninstallation
 
 ```sh
 cluster_cloudflare_external_dns delete
 ```
 
-## 5.13. Helm-Dashboard
+## 6.13. Helm-Dashboard
 
 [Komodor](https://komodor.io) provides a great tool for managing Helm charts in its cluster. Unfortunately they do not broadcast Docker image compatible with ARM64.\
 We have therefore adapted a [version](https://github.com/highcanfly-club/helm-dashboard.git).
@@ -953,23 +959,23 @@ cluster_install_helm_dashboard_ingress
 
 The dashboard can then be used on the DNS names configured in `HELM_DASHBOARD_DNS_NAMES`
 
-## 5.14. Wireguard
+## 6.14. Wireguard
 
 A mesh network with Wireguard makes it possible to overcome Oracle LPG link and possibly open the cluster outside the Oracle infrastructure, the metric of each route is set at 100 to favor routes via local peering gateways
 
-### 5.14.1. Initialization
+### 6.14.1. Initialization
 
 ```sh
 wg_meshconf_init
 ```
 
-### 5.14.2. Adding a node
+### 6.14.2. Adding a Node
 
 ```sh
 wg_meshconf_addpeer oci-nodeN oci-nodeN.example.com 51820
 ```
 
-### 5.14.3. View Nodes
+### 6.14.3. View nodes
 
 ```sh
 wg_meshconf_showpeers
@@ -977,13 +983,13 @@ wg_meshconf_showpeers
 
 <img width="874" alt="wg_meshconf" src="https://user-images.githubusercontent.com/6966689/233775674-08ad11b9-66fb-4f08-a6d7-1fd55549803f.png">
 
-### 5.14.4. Deploy Nodes
+### 6.14.4. Deploy Nodes
 
 ```sh
 wg_meshconf_deploy_config
 ```
 
-## 5.15. File `README.md` multilingual
+## 6.15. File `README.md` multilingual
 
 Machine translation is done by Azure with `markdown-translator`
 
@@ -995,7 +1001,7 @@ md-translator translate --src README.fr-FR.md --dest README.md --from fr-FR --to
 #update manually the toc
 ```
 
-## 5.16. Bird on the control-plane
+## 6.16. Bird on the control-plane
 
 TODO
 
