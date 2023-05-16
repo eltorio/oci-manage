@@ -57,10 +57,10 @@ OCI_USER="ocid1.user.oc1..9d843b1968e162816404c78f2afc854b15fd3d996008f9827e3028
 POD_CIDR=172.28.0.0/14
 PRIVATE_INTERFACE_FILE="60-private-interface.yaml"
 SERVICE_CIDR=172.24.0.0/14
-TRAEFIK_ADMIN_PASSWORD='strongpassword'
-TRAEFIK_ADMIN='admin'
+MASTER_ADMIN_PASSWORD='strongpassword'
+MASTER_ADMIN='admin'
 X86_64_SRC=node4
-#TRAEFIK_ADMIN TRAEFIK_ADMIN_PASSWORD are also used for hubble-ui dashboard
+#MASTER_ADMIN MASTER_ADMIN_PASSWORD are also used for hubble-ui dashboard
 DOCKER_REGISTRY_HOST=docker-registry.local
 DOCKER_REGISTRY_UI_HOST=docker-registry-ui.local
 DOCKER_REGISTRY_PERSISTENT=false
@@ -82,6 +82,7 @@ STORAGE_BACKEND="longhorn"
 STORAGE_LOCATION="/storage"
 STORAGE_REPLICAS=2
 LONGHORN_VERSION="1.4.1"
+GATEWAY_API_VERSION="v0.6.2"
 GRAFANA_PROMETHEUS_USERNAME="123456"
 GRAFANA_PROMETHEUS_PASSWORD="MTFhM2UyMjkwODQzNDliYzI1ZDk3ZTI5MzkzY2VkMWQgIC0K"
 GRAFANA_LOGS_USERNAME="654321"
@@ -105,6 +106,7 @@ WG_MARK="0x672"
 
 . ~/oci-manage-config.sh
 
+MASTER_ADMIN_PASSWORD_CRYPTB64=$(openssl passwd -1 $MASTER_ADMIN_PASSWORD | base64)
 K8S_CLUSTER="$CLUSTER_MEMBERS $CONTROL_PLANE_LOCAL"
 K8S_CLUSTER_LONG="$CLUSTER_MEMBERS $CONTROL_PLANE_INTERNAL_ADDRESS"
 DASHBOARD_DNS_NAMES_JS=$(
@@ -607,7 +609,8 @@ function cluster_init_create_control_plane() {
   if [ ! -z "$EXTERNAL_CLUSTER_ZONE" ]; then
     cluster_init_coredns_config
   fi
-  cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true,egressGateway.enabled=true
+  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/$GATEWAY_API_VERSION/experimental-install.yaml
+  cilium install --version $CILIUM_VERSION --helm-set kubeProxyReplacement=strict,k8sServiceHost=$CONTROL_PLANE_IP,k8sServicePort=$CONTROL_PLANE_PORT,$IPAM,tunnel=vxlan,bpf.masquerade=true,bgpControlPlane.enabled=true,bgp.announce.loadbalancerIP=true,bgp.announce.podCIDR=true,hubble.relay.enabled=true,hubble.ui.enabled=true,egressGateway.enabled=true,gatewayAPI.enabled=true
   sleep 5
   cluster_init_create_ip_pool
 }
@@ -632,18 +635,18 @@ function cluster_init_create_post_install() {
       cluster_init_install_openebs
     fi
     cluster_init_install_dashboard
-    cluster_init_install_traefik_ingressroute
+    #cluster_init_install_traefik_ingressroute
     sleep 30
     kubectl delete -n kube-traefik ingressroute.traefik.containo.us/traefik-dashboard
-    cluster_init_install_traefik_ingressroute
+    #cluster_init_install_traefik_ingressroute
     cilium hubble enable --ui
     cluster_init_cilium_hubble_ui_ingress
     cluster_run_on_all_members_as_root "systemctl restart systemd-resolved; systemctl restart haproxy"
     if [[ $(type -t private_post_install) == function ]]; then
       private_post_install
     fi
-    sudo systemctl restart systemd-resolved
-    sudo systemctl restart haproxy
+    # sudo systemctl restart systemd-resolved
+    # sudo systemctl restart haproxy
     dev_install_local_registry
   fi
 }
@@ -667,7 +670,7 @@ function cluster_init_create_member() {
             --cri-socket=$CRI_SOCKET"
     sudo scp /root/.kube/config root@$MEMBER:/root/.kube/config
     sudo scp /etc/systemd/resolved.conf.d/k8s-resolve.conf root@$MEMBER:/etc/systemd/resolved.conf.d/k8s-resolve.conf
-    ssh root@$MEMBER "systemctl restart systemd-resolved"
+    ssh root@$MEMBER "systemctl restart systemd-resolved && systemctl restart haproxy-ingress"
   fi
 }
 
@@ -687,7 +690,7 @@ function cluster_init_install_traefik_ingressroute() {
   else
     ACTION=$1
   fi
-  HTTPASSWD=$(printf "$TRAEFIK_ADMIN:$(openssl passwd -apr1 "$TRAEFIK_ADMIN_PASSWORD")\n")
+  HTTPASSWD=$(printf "$MASTER_ADMIN:$(openssl passwd -apr1 "$MASTER_ADMIN_PASSWORD")\n")
   HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | base64)
   RES=""
   for NAME in ${TRAEFIK_DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
@@ -813,83 +816,89 @@ kind: Namespace
 metadata:
   name: kubernetes-dashboard
 EOF
-    # create Traefik transport
-    cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: $CA_COMPANY-ca
-  namespace: kubernetes-dashboard
-data:
-  ca.crt: $ROOT_CA
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: ServersTransport
-metadata:
-  name: https-ca-transport
-  namespace: kubernetes-dashboard
-spec:
-    rootCAsSecrets:
-    - $CA_COMPANY-ca
-    serverName: kubernetes-dashboard.kubernetes-dashboard.svc.cluster.local
-EOF
-    # create certificate
-    cat <<EOF | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: kubernetes-dashboard-certs
-  namespace: kubernetes-dashboard
-  labels:
-     k8s-app: kubernetes-dashboard
-spec:
-  subject:
-      organizations: 
-        - $CA_COMPANY
-  commonName: $CN
-  dnsNames: $DASHBOARD_DNS_NAMES_JS
-  secretName: kubernetes-dashboard-certs
-  issuerRef:
-    name: $CA_COMPANY-ca-issuer
-    kind: ClusterIssuer
-EOF
+    #     # create Traefik transport
+    #     cat <<EOF | kubectl apply -f -
+    # apiVersion: v1
+    # kind: Secret
+    # metadata:
+    #   name: $CA_COMPANY-ca
+    #   namespace: kubernetes-dashboard
+    # data:
+    #   ca.crt: $ROOT_CA
+    # ---
+    # apiVersion: traefik.containo.us/v1alpha1
+    # kind: ServersTransport
+    # metadata:
+    #   name: https-ca-transport
+    #   namespace: kubernetes-dashboard
+    # spec:
+    #     rootCAsSecrets:
+    #     - $CA_COMPANY-ca
+    #     serverName: kubernetes-dashboard.kubernetes-dashboard.svc.cluster.local
+    # EOF
+    #     # create certificate
+    #     cat <<EOF | kubectl apply -f -
+    # apiVersion: cert-manager.io/v1
+    # kind: Certificate
+    # metadata:
+    #   name: kubernetes-dashboard-certs
+    #   namespace: kubernetes-dashboard
+    #   labels:
+    #      k8s-app: kubernetes-dashboard
+    # spec:
+    #   subject:
+    #       organizations:
+    #         - $CA_COMPANY
+    #   commonName: $CN
+    #   dnsNames: $DASHBOARD_DNS_NAMES_JS
+    #   secretName: kubernetes-dashboard-certs
+    #   issuerRef:
+    #     name: $CA_COMPANY-ca-issuer
+    #     kind: ClusterIssuer
+    # EOF
   fi
   kubectl apply -f ./dashboard/00-dashboard.yaml -f ./dashboard/01-admin-user.yaml #-f ./dashboard/02-ingress.yaml
   cluster_init_install_dashboard_ingressroute
 }
 
 function cluster_init_install_dashboard_ingressroute() {
-  #create IngressRoute
-  RULES=$(get_traefik_host_rules)
-  cat <<EOF | kubectl apply -f -
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
+  cat <<EOF >/tmp/cluster_init_install_dashboard_ingressroute.yaml
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-    name: dashboard-k8s
-    namespace: kubernetes-dashboard
+  name: dashboard-k8s
+  namespace: dev-container-registry
+  annotations:
+    cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
 spec:
-    entryPoints:
-        - websecure
-    routes:
-      - match: "$RULES"
-        kind: Rule
-        services:
-        - name: kubernetes-dashboard
-          namespace: kubernetes-dashboard
-          port: 443
-          serversTransport: https-ca-transport
-    tls:
-        secretName: kubernetes-dashboard-certs
+  ingressClassName: haproxy
+  rules:
 EOF
+  for HOST in ${DASHBOARD_DNS_NAMES[@]}; do
+    cat <<EOF >>/tmp/cluster_init_install_dashboard_ingressroute.yaml
+    - host: $HOST
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubernetes-dashboard
+                port:
+                  number: 443
+EOF
+  done
+  cat <<EOF >>/tmp/cluster_init_install_dashboard_ingressroute.yaml
+  tls:
+  - hosts: $DASHBOARD_DNS_NAMES_JS
+    secretName: hubble-cert
+---
+EOF
+  kubectl apply -f /tmp/cluster_init_install_dashboard_ingressroute.yaml
+  rm /tmp/cluster_init_install_dashboard_ingressroute.yaml
 }
-function get_traefik_host_rules() {
-  RULES=$(
-    RES=""
-    for NAME in ${DASHBOARD_DNS_NAMES[@]}; do RES+="Host(\`$NAME\`) || "; done
-    echo "${RES:0:-3}"
-  )
-  echo $RULES
-}
+
 function _get_pool_yaml() {
   cat <<EOF >/dev/stdout
 apiVersion: "cilium.io/v2alpha1"
@@ -1553,6 +1562,15 @@ function cluster_init_cilium_hubble_ui_ingress() {
     echo "Illegal number of parameters:" && echo "    usage cluster_init_cilium_hubble_ui_ingress"
   else
     cat <<EOF >/tmp/cluster_init_cilium_hubble_ui_ingress.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: kube-system
+  name: hubble-ui-haproxy-credentials
+data:
+  $MASTER_ADMIN: $MASTER_ADMIN_PASSWORD_CRYPTB64
+type: Opaque
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1560,10 +1578,12 @@ metadata:
   namespace: kube-system
   annotations:
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: kube-system/hubble-ui-haproxy-credentials
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
 EOF
     for HOST in ${HUBBLE_DASHBOARD_DNS_NAMES[@]}; do
@@ -1684,6 +1704,15 @@ function cluster_init_install_longhorn_ingress() {
     echo "Illegal number of parameters:" && echo "    usage cluster_init_install_longhorn_ingress"
   else
     cat <<EOF >/tmp/cluster_init_install_longhorn_ingress.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: longhorn-system
+  name: longhorn-ui-haproxy-credentials
+data:
+  $MASTER_ADMIN: $MASTER_ADMIN_PASSWORD_CRYPTB64
+type: Opaque
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1691,10 +1720,12 @@ metadata:
   namespace: longhorn-system
   annotations:
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: longhorn-system/longhorn-ui-haproxy-credentials
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
 EOF
     for HOST in ${LONGHORN_DASHBOARD_DNS_NAMES[@]}; do
@@ -2437,6 +2468,7 @@ function dev_install_local_registry() {
   fi
   HTTPASSWD=$(printf "$DOCKER_REGISTRY_USER:$(openssl passwd -apr1 "$DOCKER_REGISTRY_PASSWORD")\n")
   HTTPASSWD_B64=$(echo -n "$HTTPASSWD" | base64)
+  HAPROXYPASSWD_B64=$(openssl passwd -1 $DOCKER_REGISTRY_PASSWORD | base64)
   helm repo add twuni https://helm.twun.io
   helm repo add joxit https://helm.joxit.dev
   helm repo update
@@ -2450,8 +2482,8 @@ function dev_install_local_registry() {
       --set service.type=LoadBalancer
     cluster_create_local_registry_secret dev-container-registry
     helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui \
-        --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000 \
-        --set ui.catalogElementsLimit=999
+      --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000 \
+      --set ui.catalogElementsLimit=999
   else
     helm uninstall --namespace dev-container-registry docker-registry
     helm uninstall --namespace dev-container-registry joxit
@@ -2460,12 +2492,20 @@ function dev_install_local_registry() {
 apiVersion: v1
 kind: Secret
 metadata:
+  namespace: dev-container-registry
+  name: dev-container-registry-haproxy-credentials
+data:
+  $DOCKER_REGISTRY_USER: $HAPROXYPASSWD_B64
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: authsecret
   namespace: dev-container-registry
 data:
   users: $HTTPASSWD_B64
 ---
-
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -2498,11 +2538,13 @@ metadata:
   name: docker-registry
   namespace: dev-container-registry
   annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,dev-container-registry-basicauth@kubernetescrd
+    # traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,dev-container-registry-basicauth@kubernetescrd
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: dev-container-registry/dev-container-registry-haproxy-credentials
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
     - host: $DOCKER_REGISTRY_HOST
       http:
@@ -2534,11 +2576,13 @@ metadata:
   name: docker-registry-public-ui
   namespace: dev-container-registry
   annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,kube-traefik-traefik-dashboard-auth@kubernetescrd
+    # traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,dev-container-registry-basicauth@kubernetescrd
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: dev-container-registry/dev-container-registry-haproxy-credentials
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
     - host: $DOCKER_REGISTRY_UI_HOST
       http:
@@ -2570,7 +2614,15 @@ function cluster_init_docker_registry_ui_ingress() {
     echo "Illegal number of parameters:" && echo "    usage cluster_init_cilium_hubble_ui_ingress"
   else
     cat <<EOF >/tmp/cluster_init_docker_registry_ui_ingress.yaml
-
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: dev-container-registry
+  name: dev-container-registry-haproxy-credentials
+data:
+  $DOCKER_REGISTRY_USER: $HAPROXYPASSWD_B64
+type: Opaque
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -2578,11 +2630,11 @@ metadata:
   namespace: dev-container-registry
   annotations:
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
-    traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd
-    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd
+    # traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
 EOF
     for HOST in ${DOCKER_REGISTRY_UI_DNS_NAMES[@]}; do
@@ -3044,6 +3096,15 @@ function cluster_install_helm_dashboard_ingress() {
     ACTION=$1
   fi
   cat <<EOF >/tmp/helm-dashboard.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: helm-dashboard
+  name: helm-dashboard-haproxy-credentials
+data:
+  $MASTER_ADMIN: $MASTER_ADMIN_PASSWORD_CRYPTB64
+type: Opaque
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -3051,10 +3112,12 @@ metadata:
   namespace: helm-dashboard
   annotations:
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: helm-dashboard/helm-dashboard-haproxy-credentials
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: kube-traefik-traefik-dashboard-auth@kubernetescrd
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
 EOF
   for HOST in ${HELM_DASHBOARD_DNS_NAMES[@]}; do
@@ -3097,6 +3160,15 @@ function cluster_create_ingress_cloudflare() {
     SERVICE=$3
     PORT=$4
     cat <<EOF | kubectl -n $NAMESPACE apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: $NAMESPACE
+  name: $NAMESPACE-haproxy-credentials
+data:
+  $MASTER_ADMIN: $MASTER_ADMIN_PASSWORD_CRYPTB64
+type: Opaque
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -3104,12 +3176,14 @@ metadata:
   namespace: $NAMESPACE
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-cloudflare
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: $NAMESPACE/$NAMESPACE-haproxy-credentials
     external-dns.alpha.kubernetes.io/target: $CLUSTER_HA_FQDN
     external-dns.alpha.kubernetes.io/hostname: $HOST
     external-dns.alpha.kubernetes.io/ttl: "86400"
 spec:
-  ingressClassName: traefik
+  ingressClassName: haproxy
   rules:
   - host: $HOST
     http:
@@ -3136,6 +3210,101 @@ function cluster_create_local_registry_secret() {
     kubectl create secret -n $NAMESPACE docker-registry local-registry-credential --docker-server=$DOCKER_REGISTRY_HOST --docker-username=$DOCKER_REGISTRY_USER --docker-password=$DOCKER_REGISTRY_PASSWORD --docker-email=none@example.org
   fi
 }
+
+function cluster_create_egress_config() {
+  if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_create_egress_config gateway namespace pod"
+  else
+    GATEWAY=$1
+    NAMESPACE=$2
+    POD=$3
+    cat <<EOF | kubectl apply -f -
+apiVersion: cilium.io/v2
+kind: CiliumEgressGatewayPolicy
+metadata:
+  name: egress-$GATEWAY
+  namespace: $NAMESPACE
+spec:
+  selectors:
+  - podSelector:
+      matchLabels:
+        io.kompose.service: $POD
+  destinationCIDRs:
+  - "0.0.0.0/0"
+
+  egressGateway:
+    nodeSelector:
+      matchLabels:
+        kubernetes.io/hostname: $GATEWAY
+    interface: eth0
+EOF
+  fi
+}
+
+function cluster_install_haproxy_2_7() {
+  for MEMBER in $K8S_CLUSTER; do
+    echo $MEMBER
+    ssh root@$MEMBER "apt remove -y --purge haproxy"
+    ssh root@$MEMBER "apt-get install -y --no-install-recommends software-properties-common && add-apt-repository ppa:vbernat/haproxy-2.7 && apt-get install -y haproxy=2.7.\* && apt autoremove -y && setcap cap_net_bind_service=+ep /usr/sbin/haproxy"
+  done
+}
+
+function get_install_haproxy_ingress_controller() {
+  VERSION="1.10.2"
+  URL="https://github.com/haproxytech/kubernetes-ingress/releases/download/v$VERSION/haproxy-ingress-controller_"$VERSION"_Linux_$(dpkg --print-architecture).tar.gz"
+  sudo systemctl stop haproxy-ingress
+  curl -fsSL $URL | sudo tar -C /usr/local/bin/ --overwrite -xvz haproxy-ingress-controller
+  kubectl create -n kube-system configmap haproxy-kubernetes-ingress
+  cat <<EOF | kubectl apply -n kube-system -f -
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: haproxy
+spec:
+  controller: haproxy.org/ingress-controller
+EOF
+}
+
+function cluster_install_haproxy_ingress_controller() {
+  get_install_haproxy_ingress_controller
+  cat <<EOF >/tmp/haproxy-ingress.service
+[Unit]
+Description="HAProxy Kubernetes Ingress Controller"
+Documentation=https://www.haproxy.com/
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/haproxy-ingress-controller --log=debug --external --configmap=kube-system/haproxy-kubernetes-ingress --program=/usr/sbin/haproxy --disable-ipv6 --ipv4-bind-address=0.0.0.0 --http-bind-port=80 --https-bind-port=443
+ExecReload=/bin/kill --signal HUP \$MAINPID
+KillMode=process
+KillSignal=SIGTERM
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo $MEMBER
+    ssh root@$MEMBER "systemctl stop haproxy && systemctl disable haproxy && systemctl stop haproxy-ingress"
+    scp /tmp/haproxy-ingress.service root@$MEMBER:/lib/systemd/system/haproxy-ingress.service
+    scp /usr/local/bin/haproxy-ingress-controller root@$MEMBER:/usr/local/bin/haproxy-ingress-controller
+    ssh root@$MEMBER "systemctl daemon-reload && systemctl enable haproxy-ingress && systemctl start haproxy-ingress"
+  done
+  echo "Control plane"
+  sudo mv /tmp/haproxy-ingress.service /lib/systemd/system/haproxy-ingress.service
+  sudo systemctl stop haproxy
+  sudo systemctl disable haproxy
+  sudo systemctl daemon-reload
+  sudo systemctl enable haproxy-ingress
+  sudo systemctl start haproxy-ingress
+
+}
+
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -3158,6 +3327,7 @@ function cluster_help() {
   echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"
   echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
+  echo "cluster_install_haproxy_2_7:                       install haproxy 2.7 and haproxy-ingress external"
   echo "cluster_install_helm_dashboard:                    install the helm dashboard"
   echo "cluster_install_helm_dashboard_ingress:            create an ingress for the helm dashboard"
   echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
