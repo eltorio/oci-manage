@@ -625,7 +625,7 @@ function cluster_init_create_post_install() {
     echo "Illegal number of parameters:" && echo "    usage cluster_init_create_post_install"
   else
     cluster_init_install_certmanager
-    cluster_init_install_traefik
+    #cluster_init_install_traefik
     cluster_init_cloudflare_dns_issuer
     cluster_init_azure_dns_issuer
     cluster_init_install_oci_dns_issuer
