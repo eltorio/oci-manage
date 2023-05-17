@@ -1666,7 +1666,7 @@ backend k8s-traefik
 EOF
     sudo bash -c "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
     sudo systemctl daemon-reload
-    sudo systemctl restart haproxy
+    #sudo systemctl restart haproxy
   fi
 }
 
@@ -1679,7 +1679,7 @@ function cluster_deploy_haproxy_config_on_members() {
     cluster_copy_dir_as_root /etc/haproxy/k8s /etc/haproxy/
     cluster_run_on_all_members_as_root "sed -i /lib/systemd/system/haproxy.service -e 's/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -c -q \$EXTRAOPTS/ExecStartPre=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -c -q \$EXTRAOPTS/' -e 's/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -p \$PIDFILE \$EXTRAOPTS/ExecStart=\/usr\/sbin\/haproxy -Ws -f \$CONFIG -f \/etc\/haproxy\/k8s -p \$PIDFILE \$EXTRAOPTS/'"
     cluster_run_on_all_members_as_root "systemctl daemon-reload"
-    cluster_run_on_all_members_as_root "systemctl restart haproxy"
+    #cluster_run_on_all_members_as_root "systemctl restart haproxy"
   fi
 }
 
@@ -3000,10 +3000,10 @@ function cluster_convert_pem_to_base64() {
 }
 
 function cluster_restart_haproxy() {
-  cluster_run_on_all_members_as_root "systemctl restart systemd-resolved ; systemctl restart haproxy"
+  cluster_run_on_all_members_as_root "systemctl restart systemd-resolved ; systemctl restart haproxy-ingress"
   echo "oci-master"
   sudo systemctl restart systemd-resolved
-  sudo systemctl restart haproxy
+  sudo systemctl restart haproxy-ingress
 }
 
 function cluster_coredns_get_corefile() {
