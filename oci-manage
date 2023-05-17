@@ -1313,11 +1313,10 @@ function cluster_run_on_all_as_root() {
   if [ "$#" -ne 1 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_run_on_all_members_as_root command"
   else
-    for MEMBER in $CLUSTER_MEMBERS; do
+    for MEMBER in $K8S_CLUSTER; do
       echo $MEMBER
       ssh root@$MEMBER $1
     done
-    sudo $1
   fi
 }
 
