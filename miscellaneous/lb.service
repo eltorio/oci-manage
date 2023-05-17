@@ -1,8 +1,8 @@
 [Unit]
-Description=Look busy (between 10 and 19%)
+Description=Look busy (between 12 and 21%)
 
 [Service]
-ExecStart=/usr/local/bin/lb -c 10-19 --cpu-curve-period 74m --cpu-curve-peak 14m
+ExecStart=/usr/local/bin/lb -c 12-21 --cpu-curve-period=74m --cpu-curve-peak=14m
 
 [Install]
 WantedBy=multi-user.target

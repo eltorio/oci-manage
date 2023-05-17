@@ -3239,9 +3239,11 @@ function get_install_haproxy_ingress_controller() {
   sudo systemctl stop haproxy-ingress
   curl -fsSL $URL | sudo tar -C /usr/local/bin/ --overwrite -xvz haproxy-ingress-controller
   kubectl create -n kube-system configmap haproxy-kubernetes-ingress
+  kubectl create -n kube-system configmap haproxy-kubernetes-tcpservices
 }
 
 function cluster_create_haproxy_ingress_class() {
+  kubectl create -n configmap haproxy-kubernetes-ingress
   cat <<EOF | kubectl apply -n kube-system -f -
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
@@ -3249,6 +3251,13 @@ metadata:
   name: haproxy
 spec:
   controller: haproxy.org/ingress-controller
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: GatewayClass
+metadata:
+  name: haproxy-ingress-gatewayclass
+spec:
+  controllerName: haproxy.org/gateway-controller
 EOF
 }
 function cluster_install_haproxy_ingress_controller() {
@@ -3264,7 +3273,7 @@ After=network-online.target
 Type=simple
 User=root
 Group=root
-ExecStart=/usr/local/bin/haproxy-ingress-controller --log=debug --external --configmap=kube-system/haproxy-kubernetes-ingress --program=/usr/sbin/haproxy --disable-ipv6 --ipv4-bind-address=0.0.0.0 --http-bind-port=80 --https-bind-port=443
+ExecStart=/usr/local/bin/haproxy-ingress-controller --gateway-controller-name=haproxy.org/gateway-controller --configmap-tcp-services=kube-system/haproxy-kubernetes-tcpservices --log=debug --external --configmap=kube-system/haproxy-kubernetes-ingress --program=/usr/sbin/haproxy --disable-ipv6 --ipv4-bind-address=0.0.0.0 --http-bind-port=80 --https-bind-port=443
 ExecReload=/bin/kill --signal HUP \$MAINPID
 KillMode=process
 KillSignal=SIGTERM
