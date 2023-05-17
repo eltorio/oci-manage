@@ -334,7 +334,7 @@ MetalLB, for example, does not allow inbound access to be balanced between the p
 Another solution is to tinker with the netfilter table so that it forwards tcp packets to internal addresses. It's still DIY.\
 HAProxy offers an elegant solution.\
 In layer 7 mode HAProxy acts as a reverse proxy but you have to configure all Ingress manually.\
-You can use TCP mode (layer 3), but you lose the source IP address information (except to use the HAProxy protocol which must be supported by the client).\
+You can use TCP mode (layer 4), but you lose the source IP address information (except to use the HAProxy protocol which must be supported by the client).\
 The solution I find ideal is to drive HAProxy automatically by HAProxy-ingress-controller which communicates with the cluster and configures on each HAProxy on each node.
 
 # 5. OIC-MANAGE
