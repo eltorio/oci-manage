@@ -290,7 +290,7 @@ MetalLB par exemple ne permet pas d'équilibrer l'accès entrant entre les adres
 Une autre solution consiste à bricoler la table netfilter pour qu'elle transmette les paquets tcp vers les adresses internes. Cela reste du bricolage.  
 HAProxy propose une solution élégante.  
 En mode couche 7 HAProxy agit comme un reverse proxy mais il faut configurer toutes les Ingress manuellement.  
-On peut utiliser le mode TCP (couche 3), mais on perd les informations de l'adresse IP source (sauf à utiliser le protocol HAProxy qui doit être supporté par le client).  
+On peut utiliser le mode TCP (couche 4), mais on perd les informations de l'adresse IP source (sauf à utiliser le protocol HAProxy qui doit être supporté par le client).  
 La solution que je trouve idéale est de piloter HAProxy automatiquement par HAProxy-ingress-controller qui communique avec le cluster et configure sur chaque HAProxy sur chaque nœud.  
 # 5. oci-manage
 Quand tous les nœuds sont pré-installés  
