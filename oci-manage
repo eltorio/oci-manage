@@ -80,7 +80,7 @@ DASHBOARD_DNS_NAMES=("dashboard.fqdn" "dashboard.kube-dashboard.svc.cluster.loca
 LONGHORN_DASHBOARD_DNS_NAMES=("longhorn.fqdn" "longhorn-frontend.kube-system.svc.cluster.local")
 STORAGE_BACKEND="longhorn"
 STORAGE_LOCATION="/storage"
-STORAGE_REPLICAS=2
+STORAGE_REPLICAS=1
 LONGHORN_VERSION="1.4.2"
 GATEWAY_API_VERSION="v0.6.2"
 GRAFANA_PROMETHEUS_USERNAME="123456"
@@ -3243,7 +3243,7 @@ function get_install_haproxy_ingress_controller() {
 }
 
 function cluster_create_haproxy_ingress_class() {
-  kubectl create -n configmap haproxy-kubernetes-ingress
+  kubectl create -n kube-system configmap haproxy-kubernetes-ingress
   cat <<EOF | kubectl apply -n kube-system -f -
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
