@@ -3300,6 +3300,10 @@ EOF
 
 }
 
+function cluster_remove_completed_pods(){
+  kubectl delete jobs -A --field-selector status.successful=1
+}
+
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -3349,6 +3353,7 @@ function cluster_help() {
   echo "cluster_ping_host_from_members:                    ping the given host from each member"
   echo "cluster_reboot:                                    reboot all the cluster"
   echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
+  echo "cluster_remove_completed_pods:                     remove all completed pods using a field selector"
   echo "cluster_reset_control_plane:                       delete the control plane"
   echo "cluster_reset_member:                              reset one member (without leaving the cluster)"
   echo "cluster_reset_members:                             delete all members"
