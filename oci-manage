@@ -2647,11 +2647,7 @@ EOF
 }
 
 function dev_uninstall_local_registry() {
-  helm uninstall --namespace dev-container-registry docker-registry
-  helm uninstall --namespace=dev-container-registry docker-registry-ui joxit/docker-registry-ui
-  kubectl delete namespace dev-container-registry
-  sudo sed -i '/docker-registry.local/d' /etc/hosts
-  cluster_deploy_hosts
+  dev_install_local_registry delete
 }
 
 function cluster_deploy_ca_cert() {
