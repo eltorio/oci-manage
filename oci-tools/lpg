@@ -1,0 +1,6 @@
+#!/bin/bash
+PWD=`pwd`
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+cd $SCRIPT_DIR
+NODE_NO_WARNINGS=1 node --loader ts-node/esm $SCRIPT_DIR/src/lpg.ts $@
+cd $PWD
