@@ -2475,7 +2475,7 @@ function dev_install_local_registry() {
     cluster_create_local_registry_secret dev-container-registry
     helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui \
       --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000 \
-      --set ui.catalogElementsLimit=999
+      --set ui.catalogElementsLimit=1000
   else
     helm uninstall --namespace dev-container-registry docker-registry
     helm uninstall --namespace dev-container-registry joxit
@@ -3308,6 +3308,13 @@ function cluster_remove_completed_pods() {
   kubectl delete jobs -A --field-selector status.successful=1
 }
 
+function dev_local_registry_get_podname(){
+  echo $(kubectl -n dev-container-registry get pods | awk '$1 ~ /docker-registry-[0-9a-]+/ && $3=="Running" {print $1}')
+}
+function dev_local_registry_garbage_collect(){
+  POD_NAME=$(dev_local_registry_get_podname)
+  kubectl exec -n dev-container-registry -it $POD_NAME -- /bin/registry garbage-collect /etc/docker/registry/config.yml
+}
 function cluster_help() {
   echo "azure_install_cli:                                 install azure cli"
   echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
@@ -3374,7 +3381,9 @@ function cluster_help() {
   echo "cluster_update_k8s_pause:                          update registry.k8s.io/pause to the given version"
   echo "create_admin_user_with_key:                        create an admin user with its home directory and a ssh key"
   echo "dashboard_get_token:                               retrieve dashboard administrator token"
+  echo "dev_local_registry_get_podname:                    retrieve dev local registry pod name"
   echo "dev_install_local_registry                         create a local docker registry without pvc for developpement (docker-registry.local)"
+  echo "dev_local_registry_garbage_collect:                run garbage-collect on dev registry"
   echo "get_gateway_from_ip:                               get gateway for ip"
   echo "get_gateway:                                       get gateway for named host"
   echo "get_host_arch:                                     display the debian host arch"
