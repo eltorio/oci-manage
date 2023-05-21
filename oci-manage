@@ -39,6 +39,7 @@ CLUSTER_MEMBERS='node2 node3 node4 node5 node6 node7 node8'
 CLUSTER_POOL_CIDR=172.24.0.0/13
 CLUSTER_HA_FQDN=ha.fqdn.com
 CONTROL_PLANE_INTERNAL_ADDRESS=master.private.fqdn.com
+ROUTING_MEMBER='oci-router'
 #set if needed to access service IP as EXTERNAL_CLUSTER_ZONE
 EXTERNAL_CLUSTER_ZONE=cluster.external
 CONTROL_PLANE_IP=10.0.253.75
@@ -964,13 +965,14 @@ function get_gateway_from_ip() {
 
 function init_create_private_interface() {
   PREFIX=${1:0:4}
-  if [ "$#" -ne 3 ]; then
-    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface hostname macaddress privateipaddress" && echo "    Use it only for OCIs hosts"
+  if [ "$#" -ne 4 ]; then
+    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface hostname publicip macaddress privateipaddress" && echo "    Use it only for OCIs hosts"
   else
     if [ "$PREFIX" == "oci-" ]; then
       HOST=$1
-      MAC=$2
-      IP=$3
+      PUBLICIP=$2
+      MAC=$3
+      IP=$4
       GW=$(get_gateway_from_ip "$IP")
       SUBNET=$(get_subnet_from_ip "$IP")
       INTERFACE=$(get_remote_interface $HOST "$MAC")
@@ -994,7 +996,7 @@ function init_create_private_interface() {
   }
 }
 EOF
-    #scp -4 /tmp/$HOST.yaml root@$HOST:/etc/netplan/$PRIVATE_INTERFACE_FILE
+    #scp -4 /tmp/$HOST.yaml root@$PUBLICIP:/etc/netplan/$PRIVATE_INTERFACE_FILE
     #ssh -4 root@$HOST "netplan apply"
     else
       echo "Illegal host:" && echo "    Use it only for OCIs hosts"
@@ -1079,17 +1081,18 @@ function cluster_recreate_private_interface() {
     echo "Illegal number of parameters:" && echo "    usage cluster_recreate_private_interface"
   else
     for MEMBER in $CLUSTER_MEMBERS; do
-      HAS_PRIVATE_INTERFACE=$(ssh $USER@$MEMBER "test -f /etc/netplan/$PRIVATE_INTERFACE_FILE && echo $?")
-      if [[ "$HAS_PRIVATE_INTERFACE" == "0" ]]; then
-        if [[ "$MEMBER" != "$NEW_MEMBER" ]]; then
-          MEMBER_IP=$(dig $MEMBER +short)
-          MEMBER_GW=$(get_gateway $MEMBER)
-          AWK_CMD_1="'/$MEMBER_IP/ {print \$1}'"
-          MEMBER_INTERFACE=$(get_remote_interface_from_ip $MEMBER)
-          MEMBER_MAC=$(get_remote_interface_mac $MEMBER $MEMBER_INTERFACE)
-          ROUTES_JSON=$(init_get_private_routes $MEMBER_IP)
-          echo "For $MEMBER / $MEMBER_INTERFACE / $MEMBER_IP / $MEMBER_MAC / $MEMBER_GW "
-          cat <<EOF | yq -p json -o yaml - >/tmp/$MEMBER.yaml
+      if [[ "$ROUTING_MEMBER" != "$MEMBER" ]]; then
+        HAS_PRIVATE_INTERFACE=$(ssh root@$MEMBER "test -f /etc/netplan/$PRIVATE_INTERFACE_FILE && echo $?")
+        if [[ "$HAS_PRIVATE_INTERFACE" -ge "0" ]] && [[ ! -z "$HAS_PRIVATE_INTERFACE" ]]; then
+          if [[ "$MEMBER" != "$NEW_MEMBER" ]]; then
+            MEMBER_IP=$(dig $MEMBER +short)
+            MEMBER_GW=$(get_gateway $MEMBER)
+            AWK_CMD_1="'/$MEMBER_IP/ {print \$1}'"
+            MEMBER_INTERFACE=$(get_remote_interface_from_ip $MEMBER)
+            MEMBER_MAC=$(get_remote_interface_mac $MEMBER $MEMBER_INTERFACE)
+            ROUTES_JSON=$(init_get_private_routes $MEMBER_IP)
+            echo "For $MEMBER / $MEMBER_INTERFACE / $MEMBER_IP / $MEMBER_MAC / $MEMBER_GW "
+            cat <<EOF | yq -p json -o yaml - >/tmp/$MEMBER.yaml
 {
   "network": {
     "version": 2,
@@ -1106,9 +1109,14 @@ function cluster_recreate_private_interface() {
   }
 }
 EOF
-          scp -4 /tmp/$MEMBER.yaml root@$MEMBER:/etc/netplan/$PRIVATE_INTERFACE_FILE
-          ssh -4 root@$MEMBER "netplan apply"
+            scp -4 /tmp/$MEMBER.yaml root@$MEMBER:/etc/netplan/$PRIVATE_INTERFACE_FILE
+            ssh -4 root@$MEMBER "reboot"
+          fi
+        else
+          echo "$MEMBER doesn't have private interface (HAS_PRIVATE_INTERFACE=$HAS_PRIVATE_INTERFACE)"
         fi
+      else
+        echo "ATTENTION $MEMBER is the routing plane so it is excluded"
       fi
     done
     cluster_recreate_master_private_interface
@@ -1117,7 +1125,7 @@ EOF
 
 function init_get_private_routes() {
   if [ "$#" -ne 1 ]; then
-    echo "Illegal number of parameters:" && echo "    usage init_create_private_interface ipaddress"
+    echo "Illegal number of parameters:" && echo "    usage init_get_private_routes ipaddress"
   else
     IP=$1
     rm -f /tmp/$IP.tmp
@@ -3296,7 +3304,7 @@ EOF
 
 }
 
-function cluster_remove_completed_pods(){
+function cluster_remove_completed_pods() {
   kubectl delete jobs -A --field-selector status.successful=1
 }
 
