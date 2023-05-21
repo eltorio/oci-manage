@@ -1485,12 +1485,12 @@ function wg_meshconf_deploy_config() {
       MEMBER_SHORT=$(echo -n $MEMBER | cut -d"." -f1)
       if [ -f "wg/output/$MEMBER_SHORT.conf" ]; then
         echo $MEMBER
-        scp wg/output/$MEMBER_SHORT.conf root@$MEMBER:/etc/wireguard/wg0.conf
-        scp /etc/iproute2/rt_tables.d/wireguard.conf root@$MEMBER:/etc/iproute2/rt_tables.d/wireguard.conf
-        scp ~/miscellaneous/wg-quick-oci root@$MEMBER:/usr/bin/wg-quick-oci
-        scp ~/miscellaneous/wg-quick-oci.target root@$MEMBER:/lib/systemd/system/wg-quick-oci.target
-        scp ~/miscellaneous/wg-quick-oci@.service root@$MEMBER:/lib/systemd/system/wg-quick-oci@.service
-        ssh root@$MEMBER "systemctl daemon-reload; systemctl enable wg-quick-oci@wg0 ; systemctl restart wg-quick-oci@wg0"
+        scp -4 wg/output/$MEMBER_SHORT.conf root@$MEMBER:/etc/wireguard/wg0.conf
+        scp -4 /etc/iproute2/rt_tables.d/wireguard.conf root@$MEMBER:/etc/iproute2/rt_tables.d/wireguard.conf
+        scp -4 ~/miscellaneous/wg-quick-oci root@$MEMBER:/usr/bin/wg-quick-oci
+        scp -4 ~/miscellaneous/wg-quick-oci.target root@$MEMBER:/lib/systemd/system/wg-quick-oci.target
+        scp -4 ~/miscellaneous/wg-quick-oci@.service root@$MEMBER:/lib/systemd/system/wg-quick-oci@.service
+        ssh -4 root@$MEMBER "systemctl daemon-reload; systemctl enable wg-quick-oci@wg0 ; systemctl restart wg-quick-oci@wg0"
       fi
     done
     sudo cp wg/output/$CONTROL_PLANE_LOCAL.conf /etc/wireguard/wg0.conf
@@ -3406,6 +3406,7 @@ function cluster_help() {
   echo "oci_list_instance_running:                         list all running instances given a tenancy and a compartment ocid"
   echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
   echo "oci-manage-copyright:                              shows copyright"
+  echo "wg_meshconf_addpeer:                               add wireguard peer"
   echo "wg_meshconf_deploy_config:                         generate and deploy wireguard mesh network"
   echo "wg_meshconf_get_all_peers_sorted:                  parse and sort the wireguard csv db"
   echo "wg_meshconf_init:                                  initialise the wg meshconf database"
