@@ -107,6 +107,7 @@ WG_MARK="0x672"
 
 . ~/oci-manage-config.sh
 
+CLUSTER_DOMAIN=${CLUSTER_HA_FQDN#${CLUSTER_HA_FQDN%%.*}.}
 MASTER_ADMIN_PASSWORD_CRYPTB64=$(openssl passwd -1 $MASTER_ADMIN_PASSWORD | base64)
 K8S_CLUSTER="$CLUSTER_MEMBERS $CONTROL_PLANE_LOCAL"
 K8S_CLUSTER_LONG="$CLUSTER_MEMBERS $CONTROL_PLANE_INTERNAL_ADDRESS"
@@ -1474,9 +1475,9 @@ function wg_meshconf_deploy_config() {
     cd ~
     wg_meshconf_init
     docker run -v ./wg:/home/wgmeshconf -it highcanfly/wg-meshconf genconfig
-    echo "$WG_TABLE wireguard" >/tmp/wireguard.conf
-    sudo cp /tmp/wireguard.conf /etc/iproute2/rt_tables.d/wireguard.conf
-    rm /tmp/wireguard.conf
+    #echo "$WG_TABLE     wireguard" >/tmp/wireguard.conf
+    #sudo cp /tmp/wireguard.conf /etc/iproute2/rt_tables.d/wireguard.conf
+    #rm /tmp/wireguard.conf
     sudo cp ~/miscellaneous/wg-quick-oci /usr/bin/
     sudo cp ~/miscellaneous/wg-quick-oci.target /lib/systemd/system/
     sudo cp ~/miscellaneous/wg-quick-oci@.service /lib/systemd/system/
@@ -1486,7 +1487,7 @@ function wg_meshconf_deploy_config() {
       if [ -f "wg/output/$MEMBER_SHORT.conf" ]; then
         echo $MEMBER
         scp -4 wg/output/$MEMBER_SHORT.conf root@$MEMBER:/etc/wireguard/wg0.conf
-        scp -4 /etc/iproute2/rt_tables.d/wireguard.conf root@$MEMBER:/etc/iproute2/rt_tables.d/wireguard.conf
+        #scp -4 /etc/iproute2/rt_tables.d/wireguard.conf root@$MEMBER:/etc/iproute2/rt_tables.d/wireguard.conf
         scp -4 ~/miscellaneous/wg-quick-oci root@$MEMBER:/usr/bin/wg-quick-oci
         scp -4 ~/miscellaneous/wg-quick-oci.target root@$MEMBER:/lib/systemd/system/wg-quick-oci.target
         scp -4 ~/miscellaneous/wg-quick-oci@.service root@$MEMBER:/lib/systemd/system/wg-quick-oci@.service
@@ -1528,6 +1529,13 @@ function cluster_ping_host_from_members() {
   fi
 }
 
+cluster_get_all_public_ip(){
+  for MEMBER in $K8S_CLUSTER; do
+    IPv4=`dig +short $MEMBER.$CLUSTER_DOMAIN`
+    IPv6=`dig +short $MEMBER.$CLUSTER_DOMAIN AAAA`
+    echo -e "$MEMBER\t$IPv4\t$IPv6"
+  done
+}
 function cluster_get_traefik_lb_ip() {
   if [ "$#" -ne 0 ]; then
     echo "Illegal number of parameters:" && echo "    usage cluster_get_traefik_lb_ip"
@@ -3316,23 +3324,24 @@ function dev_local_registry_garbage_collect(){
   kubectl exec -n dev-container-registry -it $POD_NAME -- /bin/registry garbage-collect /etc/docker/registry/config.yml
 }
 function cluster_help() {
-  echo "azure_install_cli:                                 install azure cli"
-  echo "cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster"
-  echo "cluster_apt_install:                               install an apt package on all the cluster"
-  echo "cluster_cilium_full_status:                        issue cilium status on each member"
-  echo "cluster_cilium_hostip_all:                         get all cilium pods IPP"
-  echo "cluster_cloudflare_external_dns:                   create external dns for cloudflare dns 'needs CF_API_KEY and CF_API_EMAIL'"
-  echo "cluster_copy_dir_as_root:                          copy local dir to remote dir (take care of the trailing slashes)"
-  echo "cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely"
-  echo "cluster_copy_file_as_current_user:                 copy local file to each member"
-  echo "cluster_copy_file_as_root:                         copy local file as root to each member"
-  echo "cluster_create_local_registry_secret:                     create a secret named local-registry-credential containing login to local registry"
-  echo "cluster_create_ingress_cloudflare:                 Create an ingress with letsencrypt certificate and create a CNAME on cloudflare"
-  echo "cluster_delete_node:                               delete a k8s node"
-  echo "cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store"
-  echo "cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart"
-  echo "cluster_deploy_hosts:                              create a /etc/hosts on each cluster member"
-  echo "cluster_coredns_add_k8s_external:                  add cluster.external/$EXTERNAL_CLUSTER_ZONE zone to coredns wich resolve all the services"
+  echo 'azure_install_cli:                                 install azure cli'
+  echo 'cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster'
+  echo 'cluster_apt_install:                               install an apt package on all the cluster'
+  echo 'cluster_cilium_full_status:                        issue cilium status on each member'
+  echo 'cluster_cilium_hostip_all:                         get all cilium pods IPP'
+  echo 'cluster_cloudflare_external_dns:                   create external dns for cloudflare dns 'needs CF_API_KEY and CF_API_EMAIL''
+  echo 'cluster_copy_dir_as_root:                          copy local dir to remote dir (take care of the trailing slashes)'
+  echo 'cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely'
+  echo 'cluster_copy_file_as_current_user:                 copy local file to each member'
+  echo 'cluster_copy_file_as_root:                         copy local file as root to each member'
+  echo 'cluster_coredns_add_k8s_external:                  add cluster.external/$EXTERNAL_CLUSTER_ZONE zone to coredns wich resolve all the services'
+  echo 'cluster_create_ingress_cloudflare:                 Create an ingress with letsencrypt certificate and create a CNAME on cloudflare'
+  echo 'cluster_create_local_registry_secret:                     create a secret named local-registry-credential containing login to local registry'
+  echo 'cluster_delete_node:                               delete a k8s node'
+  echo 'cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store'
+  echo 'cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart'
+  echo 'cluster_deploy_hosts:                              create a /etc/hosts on each cluster member'
+  echo 'cluster_get_all_public_ip:                         retrieve all IPv4 and IPv6 of each members by querying $MEMBER.$CLUSTER_DOMAIN'
   echo "cluster_coredns_get_corefile:                      retrieve the coredns Corefile"
   echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"

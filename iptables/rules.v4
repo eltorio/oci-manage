@@ -14,10 +14,17 @@
 -A INPUT -i lo -j ACCEPT
 -A INPUT -p udp --sport 123 -j ACCEPT
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 43683 -j ACCEPT -m comment --comment "Port vkms"
+-A INPUT -p 50 -j ACCEPT -m comment --comment "IKEv2 protocol"
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 179 -j ACCEPT -m comment --comment "Incoming BGP"
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT -m comment --comment "WEB secure incoming"
+-A INPUT -p udp -m state --state NEW -m udp --dport 500 -j ACCEPT -m comment --comment "IKEv2 incoming port"
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 2322 -j ACCEPT -m comment --comment "Briacx SSH Gateway"
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 2379:2380 -j ACCEPT -m comment --comment "K8S etcd access"
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 4240 -j ACCEPT -m comment --comment "Cilium health API"
--A INPUT -p tcp -m state --state NEW -m tcp --dport 6443 -j ACCEPT
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 4244 -j ACCEPT -m comment --comment "Cilium Hubble port"
+-A INPUT -p udp -m state --state NEW -m udp --dport 4500 -j ACCEPT -m comment --comment "IKEv2 incoming port"
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 6443 -j ACCEPT -m comment --comment "Kubelet API port"
 -A INPUT -p udp -m state --state NEW -m udp --dport 8472 -j ACCEPT -m comment --comment "Cilium VXLAN tunnel"
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 10250 -j ACCEPT -m comment --comment "K8S node"
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 10257 -j ACCEPT
