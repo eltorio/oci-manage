@@ -291,7 +291,7 @@ function init_install_software() {
     ssh -4 root@$HOST 'curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/google-k8s.gpg'
     ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list'
     ssh -4 root@$HOST 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/google-k8s.gpg] http://apt.kubernetes.io/ kubernetes-xenial main"| tee /etc/apt/sources.list.d/k8s.list'
-    ssh -4 root@$HOST 'apt update && apt dist-upgrade -y && apt install -y iputils-ping cron vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin kubeadm kubelet kubectl kubernetes-cni haproxy jq nfs-common'
+    ssh -4 root@$HOST 'apt update && apt dist-upgrade -y && apt install -y iputils-ping psmisc cron vim wireguard iputils-ping docker-ce docker-ce-cli containerd.io docker-compose-plugin kubeadm kubelet kubectl kubernetes-cni haproxy jq nfs-common'
     ssh -4 root@$HOST "usermod -aG docker $USERNAME && reboot"
   fi
 }
@@ -1272,9 +1272,21 @@ function cluster_cilium_hostip_all_as_for() {
 function cluster_cilium_hostip_cross_ping() {
   CILIUM_HOSTS=$(cluster_cilium_hostip_all_as_for)
   for MEMBER in $CLUSTER_MEMBERS; do
+    echo "------------------------------------------------------------------------------------------------------------------------------------------"
     echo $MEMBER
     COMMAND="CILIUM_HOSTS='$CILIUM_HOSTS' ; "
     COMMAND+='for IP in $CILIUM_HOSTS;'
+    COMMAND+='do ping -c1 -W1 $IP;done '
+    ssh $USER@$MEMBER "$COMMAND"
+  done
+}
+
+function cluster_ping_cross_from_members() {
+  for MEMBER in $CLUSTER_MEMBERS; do
+    echo "------------------------------------------------------------------------------------------------------------------------------------------"
+    echo $MEMBER
+    COMMAND="HOSTS='$K8S_CLUSTER' ; "
+    COMMAND+='for IP in $HOSTS;'
     COMMAND+='do ping -c1 -W1 $IP;done '
     ssh $USER@$MEMBER "$COMMAND"
   done
@@ -1529,10 +1541,10 @@ function cluster_ping_host_from_members() {
   fi
 }
 
-cluster_get_all_public_ip(){
+cluster_get_all_public_ip() {
   for MEMBER in $K8S_CLUSTER; do
-    IPv4=`dig +short $MEMBER.$CLUSTER_DOMAIN`
-    IPv6=`dig +short $MEMBER.$CLUSTER_DOMAIN AAAA`
+    IPv4=$(dig +short $MEMBER.$CLUSTER_DOMAIN)
+    IPv6=$(dig +short $MEMBER.$CLUSTER_DOMAIN AAAA)
     echo -e "$MEMBER\t$IPv4\t$IPv6"
   done
 }
@@ -2475,11 +2487,10 @@ function dev_install_local_registry() {
   if [[ $ACTION == "apply" ]]; then
     helm upgrade --install docker-registry twuni/docker-registry \
       --create-namespace --namespace dev-container-registry \
-      --set garbageCollect.enabled=true \
-      --set image.tag=latest \
+      --set image.tag=2.7.1 \
       --set replicaCount=1 \
       --set persistence.enabled=$DOCKER_REGISTRY_PERSISTENT,persistence.deleteEnabled=true \
-      --set service.type=LoadBalancer
+      --set service.type=ClusterIP
     cluster_create_local_registry_secret dev-container-registry
     helm upgrade --install --create-namespace --namespace=dev-container-registry joxit joxit/docker-registry-ui \
       --set ui.deleteImages=true,ui.proxy=true,ui.dockerRegistryUrl=http://docker-registry.dev-container-registry.cluster.external:5000 \
@@ -2498,48 +2509,12 @@ data:
   $DOCKER_REGISTRY_USER: $HAPROXYPASSWD_B64
 type: Opaque
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: authsecret
-  namespace: dev-container-registry
-data:
-  users: $HTTPASSWD_B64
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: basicauth
-  namespace: dev-container-registry
-spec:
-  basicAuth:
-    secret: authsecret
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: cors-header
-  namespace: dev-container-registry
-spec:
-  headers:
-    accessControlAllowMethods:
-      - "GET"
-      - "OPTIONS"
-      - "HEAD"
-      - "DELETE"
-    accessControlAllowOriginList:
-      - "*"
-    accessControlMaxAge: 100
-    addVaryHeader: true
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: docker-registry
   namespace: dev-container-registry
   annotations:
-    # traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,dev-container-registry-basicauth@kubernetescrd
-    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     haproxy.org/auth-type: basic-auth
     haproxy.org/auth-secret: dev-container-registry/dev-container-registry-haproxy-credentials
@@ -2576,8 +2551,6 @@ metadata:
   name: docker-registry-public-ui
   namespace: dev-container-registry
   annotations:
-    # traefik.ingress.kubernetes.io/router.middlewares: dev-container-registry-cors-header@kubernetescrd,dev-container-registry-basicauth@kubernetescrd
-    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: $CA_COMPANY-ca-issuer
     haproxy.org/auth-type: basic-auth
     haproxy.org/auth-secret: dev-container-registry/dev-container-registry-haproxy-credentials
@@ -3309,17 +3282,20 @@ EOF
   sudo systemctl daemon-reload
   sudo systemctl enable haproxy-ingress
   sudo systemctl start haproxy-ingress
+}
 
+function cluster_enable_ipv4_forward() {
+  cluster_run_on_all_as_root "sed -ir 's/#{1,}?net.ipv4.ip_forward.*/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf && sysctl -w net.ipv4.ip_forward=1"
 }
 
 function cluster_remove_completed_pods() {
   kubectl delete jobs -A --field-selector status.successful=1
 }
 
-function dev_local_registry_get_podname(){
+function dev_local_registry_get_podname() {
   echo $(kubectl -n dev-container-registry get pods | awk '$1 ~ /docker-registry-[0-9a-]+/ && $3=="Running" {print $1}')
 }
-function dev_local_registry_garbage_collect(){
+function dev_local_registry_garbage_collect() {
   POD_NAME=$(dev_local_registry_get_podname)
   kubectl exec -n dev-container-registry -it $POD_NAME -- /bin/registry garbage-collect /etc/docker/registry/config.yml
 }
@@ -3329,6 +3305,7 @@ function cluster_help() {
   echo 'cluster_apt_install:                               install an apt package on all the cluster'
   echo 'cluster_cilium_full_status:                        issue cilium status on each member'
   echo 'cluster_cilium_hostip_all:                         get all cilium pods IPP'
+  echo 'cluster_cilium_hostip_cross_ping:                  ping all cilium interfaces'
   echo 'cluster_cloudflare_external_dns:                   create external dns for cloudflare dns 'needs CF_API_KEY and CF_API_EMAIL''
   echo 'cluster_copy_dir_as_root:                          copy local dir to remote dir (take care of the trailing slashes)'
   echo 'cluster_copy_file_and_run_as_root:                 copy local file as root to each member and runs it remotely'
@@ -3336,11 +3313,12 @@ function cluster_help() {
   echo 'cluster_copy_file_as_root:                         copy local file as root to each member'
   echo 'cluster_coredns_add_k8s_external:                  add cluster.external/$EXTERNAL_CLUSTER_ZONE zone to coredns wich resolve all the services'
   echo 'cluster_create_ingress_cloudflare:                 Create an ingress with letsencrypt certificate and create a CNAME on cloudflare'
-  echo 'cluster_create_local_registry_secret:                     create a secret named local-registry-credential containing login to local registry'
+  echo 'cluster_create_local_registry_secret:              create a secret named local-registry-credential containing login to local registry'
   echo 'cluster_delete_node:                               delete a k8s node'
   echo 'cluster_deploy_ca_cert                             install ca from ROOT_CA in the Ubuntu trust store'
   echo 'cluster_deploy_haproxy_config_on_members:          copy local /etc/haproxy/haproxy.cfg on each member and issuer a haproxy restart'
   echo 'cluster_deploy_hosts:                              create a /etc/hosts on each cluster member'
+  echo 'cluster_enable_ipv4_forward:                       set net.ipv4.ip_forward=1'
   echo 'cluster_get_all_public_ip:                         retrieve all IPv4 and IPv6 of each members by querying $MEMBER.$CLUSTER_DOMAIN'
   echo "cluster_coredns_get_corefile:                      retrieve the coredns Corefile"
   echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
