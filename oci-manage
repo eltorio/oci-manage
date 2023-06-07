@@ -2988,10 +2988,7 @@ function cluster_convert_pem_to_base64() {
 }
 
 function cluster_restart_haproxy() {
-  cluster_run_on_all_members_as_root "systemctl restart systemd-resolved ; systemctl restart haproxy-ingress"
-  echo "oci-master"
-  sudo systemctl restart systemd-resolved
-  sudo systemctl restart haproxy-ingress
+  cluster_run_on_all_as_root "killall haproxy && killall haproxy-ingress-controller && systemctl restart haproxy-ingress"
 }
 
 function cluster_coredns_get_corefile() {
