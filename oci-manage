@@ -416,8 +416,11 @@ function init_set_iptables_members() {
     echo "Illegal number of parameters:" && echo "    usage init_set_iptables_members"
   else
     for MEMBER in $CLUSTER_MEMBERS; do
-      echo $MEMBER
-      init_set_iptables $MEMBER
+      PREFIX=${MEMBER:0:4}
+      if [ $PREFIX == "oci-" ]; then
+        echo $MEMBER
+        init_set_iptables $MEMBER
+      fi
     done
   fi
 }
