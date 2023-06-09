@@ -76,7 +76,7 @@ TRAEFIK_DASHBOARD_DNS_NAMES=("traefik-dashboard.fqdn" "traefik.kube-traefik.svc.
 CA="LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZteRFLS0tLS0K"
 # cat ~/pki/ca.key | base64 | tr -d '\n'
 CA_KEY="LS0tLS1C0tLQo="
-CILIUM_VERSION="v1.13.2"
+CILIUM_VERSION="v1.13.3"
 DASHBOARD_DNS_NAMES=("dashboard.fqdn" "dashboard.kube-dashboard.svc.cluster.local")
 LONGHORN_DASHBOARD_DNS_NAMES=("longhorn.fqdn" "longhorn-frontend.kube-system.svc.cluster.local")
 STORAGE_BACKEND="longhorn"
