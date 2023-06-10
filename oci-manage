@@ -1541,6 +1541,22 @@ function cluster_ping_host_from_members() {
       echo "From $MEMBER to $HOST"
       ssh $USER@$MEMBER "ping -c1 $HOST"
     done
+    echo "From localhost to $HOST"
+    ping -c1 $HOST
+  fi
+}
+
+function cluster_ping6_host_from_members() {
+  if [ "$#" -ne 1 ]; then
+    echo "Illegal number of parameters:" && echo "    usage cluster_ping6_host_from_members host"
+  else
+    HOST=$1
+    for MEMBER in $CLUSTER_MEMBERS; do
+      echo "From $MEMBER to $HOST"
+      ssh $USER@$MEMBER "ping6 -c1 $HOST"
+    done
+        echo "From localhost to $HOST"
+    ping6 -c1 $HOST
   fi
 }
 
@@ -3299,6 +3315,14 @@ function dev_local_registry_garbage_collect() {
   POD_NAME=$(dev_local_registry_get_podname)
   kubectl exec -n dev-container-registry -it $POD_NAME -- /bin/registry garbage-collect /etc/docker/registry/config.yml
 }
+function wg_meshconf_apt_dist_upgrade() {
+  MEMBERS=$(wg_meshconf_get_all_peers_sorted)
+  for MEMBER in $MEMBERS; do
+    echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+    echo "RUNNING for $MEMBER"
+    ssh  root@$MEMBER "apt update && apt -y dist-upgrade"
+  done
+}
 function cluster_help() {
   echo 'azure_install_cli:                                 install azure cli'
   echo 'cluster_apt_dist_upgrade:                          apt dist-upgrade on all the cluster'
@@ -3321,12 +3345,10 @@ function cluster_help() {
   echo 'cluster_enable_ipv4_forward:                       set net.ipv4.ip_forward=1'
   echo 'cluster_get_all_public_ip:                         retrieve all IPv4 and IPv6 of each members by querying $MEMBER.$CLUSTER_DOMAIN'
   echo "cluster_coredns_get_corefile:                      retrieve the coredns Corefile"
-  echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"
+  echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
-  echo "cluster_install_haproxy_2_7:                       install haproxy 2.7 and haproxy-ingress external"
-  echo "cluster_install_helm_dashboard:                    install the helm dashboard"
-  echo "cluster_install_helm_dashboard_ingress:            create an ingress for the helm dashboard"
+  echo "cluster_init_azure_dns_issuer:                     install letsencrypt-azure and letsencrypt-staging-azure clusterissuer against Azure DNS zone"
   echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
   echo "cluster_init_coredns_config:                       create the initial coredns config with cluster.external zone"
   echo "cluster_init_create_control_plane_pool_kubernetes: create control plane with ipam=kubernetes"
@@ -3336,19 +3358,21 @@ function cluster_help() {
   echo "cluster_init_create_members:                       join all members to k8s cluster"
   echo "cluster_init_create_post_install:                  run post install deployement (certmanager, traefik, dashboard)"
   echo "cluster_init_install_certmanager:                  deploy cert-manager with ca"
-  echo "init_install_cri_containerd:                       disable cri-dockerd and enable cri-containerd"
   echo "cluster_init_install_cri_containerd:               install cri-containerd"
   echo "cluster_init_install_cri_docker:                   install cri_docker on arm64 only"
   echo "cluster_init_install_dashboard:                    deploy dashboard"
-  echo "cluster_init_azure_dns_issuer:                     install letsencrypt-azure and letsencrypt-staging-azure clusterissuer against Azure DNS zone"
   echo "cluster_init_install_longhorn_ingress:             install longhorn ingress for all LONGHORN_DASHBOARD_DNS_NAMES"
   echo "cluster_init_install_longhorn:                     install longhorn storage management"
   echo "cluster_init_install_oci_dns_issuer                install letsencrypt-oci and letsencrypt-staging-oci clusterissuer against OCI DNS zone"
   echo "cluster_init_install_openebs:                      install openEbs storage management"
   echo "cluster_init_install_traefik:                      deploy the traefik helm chart in kube-traefik namespace"
+  echo "cluster_install_haproxy_2_7:                       install haproxy 2.7 and haproxy-ingress external"
+  echo "cluster_install_helm_dashboard_ingress:            create an ingress for the helm dashboard"
+  echo "cluster_install_helm_dashboard:                    install the helm dashboard"
   echo "cluster_iptables_flush:                            flush iptables on control plane and all members"
   echo "cluster_iptables_open_ipv4_port:                   open an ipv4 on all the cluster firewalls"
   echo "cluster_ping_host_from_members:                    ping the given host from each member"
+  echo "cluster_ping6_host_from_members:                   ping the given host from each member with IPv6"
   echo "cluster_reboot:                                    reboot all the cluster"
   echo "cluster_recreate_private_interface:                recreate all private interface netplan yaml"
   echo "cluster_remove_completed_pods:                     remove all completed pods using a field selector"
@@ -3359,30 +3383,31 @@ function cluster_help() {
   echo "cluster_reset_remove_oci_dns_issuer:               remove the OCI Letsencrypt certificate issuers"
   echo "cluster_reset_storage:                             empty all /storage"
   echo "cluster_restart_haproxy:                           restart haproxy and systemd-resolved"
+  echo "cluster_run_on_all_as_root:                        run as root on all the cluster"
   echo "cluster_run_on_all_members_as_current_user:        run a command on each member as root"
   echo "cluster_run_on_all_members_as_root:                run a command on each member"
-  echo "cluster_run_on_all_as_root:                        run as root on all the cluster"
   echo "cluster_test_tcp_port:                             open a tcp server and try to reach it"
   echo "cluster_test_udp_port:                             open a udp server and try to reach it"
   echo "cluster_traefik_launch_simple_proxy:               lauche simpleproxy from private ip to traefik loadbalancer"
   echo "cluster_update_k8s_pause:                          update registry.k8s.io/pause to the given version"
   echo "create_admin_user_with_key:                        create an admin user with its home directory and a ssh key"
   echo "dashboard_get_token:                               retrieve dashboard administrator token"
-  echo "dev_local_registry_get_podname:                    retrieve dev local registry pod name"
   echo "dev_install_local_registry                         create a local docker registry without pvc for developpement (docker-registry.local)"
   echo "dev_local_registry_garbage_collect:                run garbage-collect on dev registry"
+  echo "dev_local_registry_get_podname:                    retrieve dev local registry pod name"
   echo "get_gateway_from_ip:                               get gateway for ip"
   echo "get_gateway:                                       get gateway for named host"
   echo "get_host_arch:                                     display the debian host arch"
   echo "get_kube_dns_ip:                                   compute kube-dns internal ip for Service CIDR"
   echo "get_remote_interface_from_ip:                      get the remote interface corresponding to ip"
   echo "get_remote_interface:                              get the remote interface on a host giving its mac address"
+  echo "get_subnet_16:                                     get full subnet"
   echo "get_subnet_from_ip:                                get subnet for ip"
   echo "get_subnet:                                        get subnet for named host"
-  echo "get_subnet_16:                                     get full subnet"
   echo "init_allow_keys_for_root:                          allow all admins keys in the new host"
   echo "init_create_admin_user_with_key:                   create an admin user on a new host"
   echo "init_create_private_interface:                     create the private interface"
+  echo "init_install_cri_containerd:                       disable cri-dockerd and enable cri-containerd"
   echo "init_install_cri_docker:                           deploy the cri_docker on the new host"
   echo "init_install_software:                             install and uptate initial sofware for runnig cluster"
   echo "init_set_hostname:                                 set the hostname of the new member"
@@ -3394,6 +3419,7 @@ function cluster_help() {
   echo "oci_list_vcn:                                      get the vcn given a tenancy and a compartment ocid"
   echo "oci-manage-copyright:                              shows copyright"
   echo "wg_meshconf_addpeer:                               add wireguard peer"
+  echo "wg_meshconf_apt_dist_upgrade:                      Launch apt update && apt -y dist-upgrade on each wireguard peers"
   echo "wg_meshconf_deploy_config:                         generate and deploy wireguard mesh network"
   echo "wg_meshconf_get_all_peers_sorted:                  parse and sort the wireguard csv db"
   echo "wg_meshconf_init:                                  initialise the wg meshconf database"
