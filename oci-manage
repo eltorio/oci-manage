@@ -3315,12 +3315,19 @@ function dev_local_registry_garbage_collect() {
   POD_NAME=$(dev_local_registry_get_podname)
   kubectl exec -n dev-container-registry -it $POD_NAME -- /bin/registry garbage-collect /etc/docker/registry/config.yml
 }
+
 function wg_meshconf_apt_dist_upgrade() {
   MEMBERS=$(wg_meshconf_get_all_peers_sorted)
   for MEMBER in $MEMBERS; do
     echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
     echo "RUNNING for $MEMBER"
     ssh  root@$MEMBER "apt update && apt -y dist-upgrade"
+  done
+}
+
+function cluster_haproxy_get_validation_script(){
+  for MEMBER in $K8S_CLUSTER; do
+    echo "echo \"test for $MEMBER\" && curl -k -6 https://$MEMBER.oci.sctg.eu.org && curl -k -4 https://$MEMBER.oci.sctg.eu.org && echo \"+++\""
   done
 }
 function cluster_help() {
@@ -3348,6 +3355,7 @@ function cluster_help() {
   echo "cluster_get_external_ips:                          retrieve all external addresses of the cluster"
   echo "cluster_get_host_external_ipv4or6:                 retrieve the external ipv4 (with A) or ipv6 (with AAAA) host address"
   echo "cluster_get_traefik_lb_ip:                         get the traefik load balancer external ip"
+  echo "cluster_haproxy_get_validation_script:             get a script for validating haproxy-ingress, copy it and run it from outside, all members should answer 'Not FoundNot Found'"
   echo "cluster_init_azure_dns_issuer:                     install letsencrypt-azure and letsencrypt-staging-azure clusterissuer against Azure DNS zone"
   echo "cluster_init_cilium_hubble_ui_ingress:             create hubble-ui ingress with same auth as traefik dashboard"
   echo "cluster_init_coredns_config:                       create the initial coredns config with cluster.external zone"
