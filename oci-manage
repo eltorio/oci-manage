@@ -3004,7 +3004,7 @@ function cluster_convert_pem_to_base64() {
 }
 
 function cluster_restart_haproxy() {
-  cluster_run_on_all_as_root "killall haproxy && killall haproxy-ingress-controller && systemctl restart haproxy-ingress"
+  cluster_run_on_all_as_root "systemctl stop haproxy ; systemctl stop haproxy-ingress ; killall haproxy ; killall haproxy-ingress-controller ; systemctl start haproxy-ingress"
 }
 
 function cluster_coredns_get_corefile() {
